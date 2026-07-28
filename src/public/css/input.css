@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Marca — solo en logo, botones de acción, bordes activos y barra de anuncios */
+  --brand:          #fa9825;
+  --brand-to:       #c8b174;
+  --brand-gradient: linear-gradient(135deg, #fa9825, #c8b174);
+  --brand-ink:      #8a4a00;   /* naranja oscurecido: única versión válida como
+                                  texto sobre blanco (6,9:1) */
+
+  /* Neutros cálidos — el 90% de la interfaz */
+  --bg:             #fdfbf7;   /* fondo de página, blanco cálido */
+  --surface:        #ffffff;   /* cards y paneles */
+  --border:         #e8e2d6;
+  --border-strong:  #a8a196;
+  --text-muted:     #6b6459;
+  --text:           #1c1917;   /* casi negro cálido */
+
+  /* Semánticos */
+  --success:        #15803d;
+  --error:          #b91c1c;
+}

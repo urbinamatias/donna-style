@@ -1,0 +1,6 @@
+node_modules/
+.env
+src/public/css/output.css
+src/public/uploads/
+.DS_Store
+*.log

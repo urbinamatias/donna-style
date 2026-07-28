@@ -1,0 +1,20 @@
+<%# ------------------------------------------------------------------
+  Reservado para el patrón de layout compartido (§9 estructura del
+  proyecto). Todavía no se usa vía `include()`: ese mecanismo requiere
+  `<%- %>` (sin escapar) porque compone HTML ya renderizado, y la regla
+  dura de Fase 1 es no usar `<%- %>` en ninguna vista mientras no exista
+  contenido dinámico real que justifique sanitizarlo (§8.1). `pages/home.ejs`
+  es por ahora un documento autocontenido. Este layout se activa recién
+  cuando Fase 3 (Catálogo) introduzca partials reales.
+------------------------------------------------------------------ %>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/output.css">
+</head>
+<body>
+</body>
+</html>

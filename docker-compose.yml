@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-donna}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-donna}
+      POSTGRES_DB: ${POSTGRES_DB:-donna_style}
+    ports:
+      - "${DB_HOST_PORT:-5432}:5432"
+    volumes:
+      - donna_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-donna}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  donna_db_data:
