@@ -67,29 +67,56 @@
       <% } %>
     </div>
 
-    <% if (showSelectors) { %>
-      <div aria-live="polite" class="sr-only"></div>
-      <div class="flex flex-col gap-1 transition-opacity duration-150">
-        <% ['size', 'color'].forEach(function (axis) { %>
-          <% if (product.availability.axes[axis] && product.availability.axes[axis].length > 0) { %>
-            <div class="flex flex-wrap gap-1" role="group" aria-label="<%= axis === 'size' ? 'Talle' : 'Color' %>">
-              <% product.availability.axes[axis].forEach(function (value) { %>
-                <button
-                  type="button"
-                  aria-pressed="<%= product.availability.defaultSelection[axis] === value %>"
-                  class="rounded border px-2 py-1 text-xs <%= product.availability.defaultSelection[axis] === value ? 'border-[var(--brand)] font-semibold' : 'border-border' %>"
-                ><%= value %></button>
-              <% }) %>
-            </div>
-          <% } %>
-        <% }) %>
+    <% if (product.availability.hasAnyStock) { %>
+      <%
+        // Fase 4: form real de agregar, resuelto server-side con el mismo
+        // criterio que `defaultVariant` de arriba — funciona sin JS
+        // (POST → 303 a /carrito); con JS, variant-selector.js reescribe
+        // los grupos de ejes y el hidden variant_id al cambiar selección.
+        const defaultKey = [
+          product.decisionTable.axes.indexOf('size') !== -1 ? (product.decisionTable.default.size || '') : '',
+          product.decisionTable.axes.indexOf('color') !== -1 ? (product.decisionTable.default.color || '') : '',
+        ].join('|');
+        const initialVariant = product.decisionTable.axes.length > 0
+          ? product.decisionTable.variants[defaultKey]
+          : product.decisionTable.variants[''];
+      %>
+      <form data-add-form data-variant-widget action="/carrito/agregar" method="post" class="flex flex-1 flex-col gap-2">
+        <script type="application/json" data-decision-table><%- toScriptJson(product.decisionTable) %></script>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="variant_id" data-variant-id-input value="<%= initialVariant ? initialVariant.id : '' %>">
+
+        <% if (showSelectors) { %>
+          <div aria-live="polite" class="sr-only" data-variant-live-region></div>
+          <div class="flex flex-col gap-1">
+            <% ['size', 'color'].forEach(function (axis) { %>
+              <% if (product.decisionTable.values[axis] && product.decisionTable.values[axis].length > 0) { %>
+                <div class="flex flex-wrap gap-2" role="group" aria-label="<%= axis === 'size' ? 'Talle' : 'Color' %>" data-axis-group="<%= axis %>">
+                  <% product.decisionTable.values[axis].forEach(function (value) { %>
+                    <button
+                      type="button"
+                      aria-pressed="<%= product.decisionTable.default[axis] === value %>"
+                      class="min-h-11 min-w-11 rounded border px-3 py-2 text-sm <%= product.decisionTable.default[axis] === value ? 'border-[var(--brand)] font-semibold' : 'border-border' %>"
+                    ><%= value %></button>
+                  <% }) %>
+                </div>
+              <% } %>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <div class="mt-auto pt-2">
+          <button type="submit" data-add-button class="w-full rounded px-3 py-2 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70" style="background: var(--brand-gradient);">
+            Agregar al carrito
+          </button>
+        </div>
+      </form>
+    <% } else { %>
+      <div class="mt-auto pt-2">
+        <button type="button" disabled class="w-full rounded px-3 py-2 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70" style="background: var(--brand-gradient);">
+          Sin stock
+        </button>
       </div>
     <% } %>
-
-    <div class="mt-auto pt-2">
-      <button type="button" disabled class="w-full rounded px-3 py-2 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70" style="background: var(--brand-gradient);">
-        <% if (!product.availability.hasAnyStock) { %>Sin stock<% } else { %>Agregar al carrito<% } %>
-      </button>
-    </div>
   </div>
 </article>

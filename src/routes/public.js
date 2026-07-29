@@ -7,8 +7,7 @@ const productsModel = require('../models/products');
 const productImagesModel = require('../models/product-images');
 const variantsModel = require('../models/variants');
 const carouselSlidesModel = require('../models/carousel-slides');
-const siteSettingsModel = require('../models/site-settings');
-const { computeAvailability } = require('../services/availability');
+const { computeAvailability, buildDecisionTable } = require('../services/availability');
 const config = require('../config/env');
 
 const router = express.Router();
@@ -20,14 +19,33 @@ const PER_PAGE = 24;
 // razón que findBySlugWithDetails evita el mega-JOIN). Se completa acá, en la
 // capa de rutas, componiendo los tres modelos por producto de la página
 // actual (máx. 24 productos, escala trivial para esta fase).
+// Precio efectivo por variante (§3.1: `price_override ?? base_price`).
+// `buildDecisionTable` es una función pura sobre `variants` (sin acceso a
+// producto/DB — mismo criterio que availability.js), así que el precio
+// efectivo se resuelve ACÁ, donde `product.base_price` está disponible,
+// antes de pasarle las filas.
+function withEffectivePrice(variants, product) {
+  return variants.map((v) => ({ ...v, price: v.price_override ?? product.base_price }));
+}
+
 async function attachCardData(products) {
   return Promise.all(
     products.map(async (product) => {
-      const [images, variants] = await Promise.all([
+      const [images, rawVariants] = await Promise.all([
         productImagesModel.findByProductId(product.id),
         variantsModel.findByProductId(product.id),
       ]);
-      return { ...product, images, variants, availability: computeAvailability(variants) };
+      const variants = withEffectivePrice(rawVariants, product);
+      return {
+        ...product,
+        images,
+        variants,
+        availability: computeAvailability(variants),
+        // Fase 4 (design.md D4): única fuente para el selector client-side,
+        // compuesta a partir de las mismas funciones que `availability` —
+        // nunca una segunda implementación de §3.2.
+        decisionTable: buildDecisionTable(variants),
+      };
     })
   );
 }
@@ -51,27 +69,6 @@ function parsePrice(raw) {
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
-
-// Carga datos comunes a toda página pública (mega menú + config de sitio)
-// una sola vez por request. Sin caché a propósito: la escala de datos (~20
-// categorías/productos) hace la query trivial (ver explore.md hallazgo #3).
-router.use(async (req, res, next) => {
-  try {
-    const [menuTree, announcementText] = await Promise.all([
-      categoriesModel.findMenuTree(),
-      siteSettingsModel.get('announcement_bar_text'),
-    ]);
-    res.locals.menuTree = menuTree;
-    // Varios mensajes separados por " • " para el ticker en loop (§5.1).
-    res.locals.announcementItems = announcementText
-      ? announcementText.split('•').map((s) => s.trim()).filter(Boolean)
-      : [];
-    res.locals.storeConfig = config;
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
 
 // La descripción es la ÚNICA dinámica que se renderiza sin escapar (`<%- %>`
 // en product.ejs), y solo después de pasar por acá (§8.1). `require` es
@@ -126,7 +123,9 @@ router.get('/productos/:productSlug', async (req, res, next) => {
     const categoryIds = product.categories.map((c) => c.id);
     const relatedRaw = await productsModel.findRelated(product.id, categoryIds, 4);
     const related = await attachCardData(relatedRaw);
+    product.variants = withEffectivePrice(product.variants, product);
     product.availability = computeAvailability(product.variants);
+    product.decisionTable = buildDecisionTable(product.variants);
     // Principio de ausencia (§4.5): sin descripción, no hay descriptionHtml,
     // y product.ejs directamente no renderiza la sección.
     if (product.description) {

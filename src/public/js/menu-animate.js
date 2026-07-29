@@ -26,6 +26,10 @@
     var backdrop = panel.querySelector(':scope > [data-menu-backdrop]');
     var drawer = panel.querySelector(':scope > [data-menu-drawer]');
     var isDrawer = !!(backdrop && drawer);
+    // Botón de cierre explícito DENTRO del panel (opcional): necesario para
+    // drawers que en mobile ocupan el 100% del ancho (ej. cart-drawer.ejs),
+    // donde el backdrop no deja área tapable para cerrar tocando afuera.
+    var closeButtons = drawer ? drawer.querySelectorAll('[data-menu-close]') : [];
     var busy = false;
 
     function open() {
@@ -123,6 +127,17 @@
         close().then(function () {
           busy = false;
           summary.focus();
+        });
+      });
+
+      closeButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          if (!details.open || busy) return;
+          busy = true;
+          close().then(function () {
+            busy = false;
+            summary.focus();
+          });
         });
       });
     }

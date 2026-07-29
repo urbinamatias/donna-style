@@ -17,6 +17,10 @@
   <% } %>
   <link rel="icon" href="/img/logo-cuadrado.png">
   <link rel="stylesheet" href="/css/output.css">
+  <%# Fase 4: token CSRF disponible para cart.js/variant-selector.js sin
+      tener que repetirlo como input oculto en cada form generado por JS
+      (design.md D3 — header estándar, no dato dinámico peligroso). %>
+  <meta name="csrf-token" content="<%= csrfToken %>">
 </head>
 <body class="bg-bg text-text min-h-screen flex flex-col">
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-surface focus:text-text focus:p-3">Saltar al contenido</a>
@@ -26,6 +30,12 @@
   </main>
   <%- include('../partials/footer') %>
   <script src="/js/menu-animate.js" defer></script>
+  <%# Fase 4: cargados en toda página porque el drawer vive en el header
+      (cart.js) y las cards de producto pueden aparecer en home/categoría/
+      ficha (variant-selector.js) — ambos no-opean si no encuentran sus
+      elementos data-* en el DOM. %>
+  <script src="/js/variant-selector.js" defer></script>
+  <script src="/js/cart.js" defer></script>
   <% if (typeof bodyScripts !== 'undefined') { %>
     <% bodyScripts.forEach(function (src) { %>
       <script src="<%= src %>" defer></script>

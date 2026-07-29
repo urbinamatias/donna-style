@@ -72,45 +72,64 @@
     <% if (!product.availability.hasAnyStock) { %>
       <p class="mb-4 font-medium text-error">Sin stock</p>
     <% } else { %>
-      <% if (showSelectors) { %>
-        <div aria-live="polite" class="sr-only" data-variant-live-region></div>
-        <div class="mb-4 flex flex-col gap-3 transition-opacity duration-150">
-          <% ['size', 'color'].forEach(function (axis) { %>
-            <% if (product.availability.axes[axis] && product.availability.axes[axis].length > 0) { %>
-              <div role="group" aria-label="<%= axis === 'size' ? 'Talle' : 'Color' %>">
-                <p class="mb-1 text-xs font-medium text-textMuted"><%= axis === 'size' ? 'Talle' : 'Color' %></p>
-                <div class="flex flex-wrap gap-2">
-                  <% product.availability.axes[axis].forEach(function (value) { %>
-                    <button
-                      type="button"
-                      aria-pressed="<%= product.availability.defaultSelection[axis] === value %>"
-                      class="rounded border px-3 py-2 text-sm <%= product.availability.defaultSelection[axis] === value ? 'border-[var(--brand)] font-semibold' : 'border-border' %>"
-                    ><%= value %></button>
-                  <% }) %>
+      <%
+        const defaultKey = [
+          product.decisionTable.axes.indexOf('size') !== -1 ? (product.decisionTable.default.size || '') : '',
+          product.decisionTable.axes.indexOf('color') !== -1 ? (product.decisionTable.default.color || '') : '',
+        ].join('|');
+        const initialVariant = product.decisionTable.axes.length > 0
+          ? product.decisionTable.variants[defaultKey]
+          : product.decisionTable.variants[''];
+      %>
+      <%# novalidate: el tope de cantidad ya lo aplica el servidor contra
+        stock vivo; sin esto, el navegador bloquea el submit con su propio
+        mensaje nativo de validación, en el idioma del navegador (no el de
+        la página) — no queremos ese inglés en una tienda en español. %>
+      <form data-add-form data-variant-widget action="/carrito/agregar" method="post" novalidate>
+        <script type="application/json" data-decision-table><%- toScriptJson(product.decisionTable) %></script>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="variant_id" data-variant-id-input value="<%= initialVariant ? initialVariant.id : '' %>">
+
+        <% if (showSelectors) { %>
+          <div aria-live="polite" class="sr-only" data-variant-live-region></div>
+          <div class="mb-4 flex flex-col gap-3">
+            <% ['size', 'color'].forEach(function (axis) { %>
+              <% if (product.decisionTable.values[axis] && product.decisionTable.values[axis].length > 0) { %>
+                <div role="group" aria-label="<%= axis === 'size' ? 'Talle' : 'Color' %>" data-axis-group="<%= axis %>">
+                  <p class="mb-1 text-xs font-medium text-textMuted"><%= axis === 'size' ? 'Talle' : 'Color' %></p>
+                  <div class="flex flex-wrap gap-2">
+                    <% product.decisionTable.values[axis].forEach(function (value) { %>
+                      <button
+                        type="button"
+                        aria-pressed="<%= product.decisionTable.default[axis] === value %>"
+                        class="min-h-11 min-w-11 rounded border px-3 py-2 text-sm <%= product.decisionTable.default[axis] === value ? 'border-[var(--brand)] font-semibold' : 'border-border' %>"
+                      ><%= value %></button>
+                    <% }) %>
+                  </div>
                 </div>
-              </div>
-            <% } %>
-          <% }) %>
-        </div>
-      <% } %>
+              <% } %>
+            <% }) %>
+          </div>
+        <% } %>
 
-      <% if (defaultVariant && defaultVariant.stock <= 2) { %>
-        <p class="mb-4 text-sm font-medium text-error">
-          <%= defaultVariant.stock === 1 ? '¡Es el último!' : `Quedan ${defaultVariant.stock}` %>
-        </p>
-      <% } %>
+        <% if (defaultVariant && defaultVariant.stock <= 2) { %>
+          <p class="mb-4 text-sm font-medium text-error">
+            <%= defaultVariant.stock === 1 ? '¡Es el último!' : `Quedan ${defaultVariant.stock}` %>
+          </p>
+        <% } %>
 
-      <% if (defaultVariant) { %>
-        <div class="mb-4 flex items-center gap-2">
-          <label for="quantity" class="text-sm font-medium">Cantidad</label>
-          <input type="number" id="quantity" name="quantity" min="1" max="<%= defaultVariant.stock %>" value="1" class="w-20 rounded border border-border px-2 py-1 text-sm">
-        </div>
-      <% } %>
+        <% if (defaultVariant) { %>
+          <div class="mb-4 flex items-center gap-2">
+            <label for="quantity" class="text-sm font-medium">Cantidad</label>
+            <input type="number" id="quantity" name="quantity" data-quantity-input min="1" max="<%= defaultVariant.stock %>" value="1" class="w-20 rounded border border-border px-2 py-1 text-sm">
+          </div>
+        <% } %>
+
+        <button type="submit" data-add-button class="mb-6 w-full rounded px-4 py-3 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70 md:w-auto" style="background: var(--brand-gradient);">
+          Agregar al carrito
+        </button>
+      </form>
     <% } %>
-
-    <button type="button" disabled class="mb-6 w-full rounded px-4 py-3 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70 md:w-auto" style="background: var(--brand-gradient);">
-      <% if (!product.availability.hasAnyStock) { %>Sin stock<% } else { %>Agregar al carrito<% } %>
-    </button>
 
     <% if (product.descriptionHtml) { %>
       <section class="mb-6 border-t border-border pt-4">

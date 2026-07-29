@@ -27,7 +27,9 @@ Convenciones del proyecto para mantener consistencia entre sesiones. La fuente d
 
 ## 3. Reglas de seguridad
 
-- **EJS: siempre `<%= %>` (escapa).** Nunca `<%- %>`. La única excepción permitida en todo el proyecto es la descripción del producto, y solo después de pasarla por `sanitize-html` con whitelist restrictiva en el servidor.
+- **EJS: siempre `<%= %>` (escapa).** Nunca `<%- %>`, con dos excepciones permitidas en todo el proyecto:
+  1. La descripción del producto, y solo después de pasarla por `sanitize-html` con whitelist restrictiva en el servidor.
+  2. JSON embebido en `<script type="application/json">` (ej. la tabla de disponibilidad de variantes, Fase 4). Ese elemento es "raw text" en HTML: el parser nunca decodifica entidades ahí adentro, así que `<%= %>` deja el JSON roto (`JSON.parse` falla en silencio, sin error de servidor — ver `src/services/format.js`). Va siempre con `toScriptJson()` de `src/services/format.js`, que en vez de escapar a entidades neutraliza a nivel de JSON las secuencias peligrosas para el tag (`<`, `>`, `&`), nunca con `JSON.stringify` a secas.
 - **Prohibido `innerHTML`, `outerHTML`, `insertAdjacentHTML` y `document.write` con datos dinámicos** en cualquier JS de cliente. Usá `textContent`, `createElement`/`append`, o `<template>` + `cloneNode`.
 - Queries parametrizadas siempre.
 - Tokens CSRF en todo formulario que muta estado (a partir de la fase que tenga formularios de escritura).

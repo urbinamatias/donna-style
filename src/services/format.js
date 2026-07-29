@@ -22,4 +22,21 @@ function formatDate(date) {
   }).format(date instanceof Date ? date : new Date(date));
 }
 
-module.exports = { formatPrice, formatDate };
+// `<script type="application/json">` es un elemento de "texto crudo": el
+// parser de HTML NUNCA decodifica entidades ahí adentro, así que insertar el
+// JSON con `<%= %>` (que escapa `"` a `&#34;`) deja texto que `JSON.parse`
+// no puede leer — hay que usar `<%- %>` con ESTA función, que en vez de
+// escapar a entidades HTML neutraliza a nivel de JSON las únicas secuencias
+// peligrosas para un tag `<script>` (un `</script>` embebido en un valor
+// podría cerrar el tag y ejecutar HTML arbitrario). El resultado sigue
+// siendo JSON válido, entra crudo, y nunca puede romper el tag que lo
+// contiene — mismo espíritu que sanitize-html para la descripción: unescaped
+// solo detrás de una función que garantiza que no sobrevive nada peligroso.
+function toScriptJson(data) {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
+
+module.exports = { formatPrice, formatDate, toScriptJson };

@@ -1,0 +1,104 @@
+<%# ------------------------------------------------------------------
+  Drawer de carrito (§5.7, design.md D6/D7). Mismo esqueleto <details
+  data-menu> que nav-drawer.ejs: se apoya en menu-animate.js (Fase 3, ya
+  genérico sobre [data-menu-panel/backdrop/drawer]) para la animación
+  280ms/220ms, Escape y click-afuera — cero JS de animación duplicado acá.
+
+  Contenido inicial: solo el conteo (`cartCount`, ya disponible via
+  res.locals en toda vista). Las líneas reales se completan client-side
+  por cart.js contra GET /carrito/estado, que revalida stock en cada
+  apertura (spec "Stock revalidation on open") — server-render de líneas
+  detalladas en CADA página duplicaría esa query en cada request, no solo
+  cuando el drawer se abre.
+------------------------------------------------------------------ %>
+<details data-menu id="cart-drawer">
+  <summary
+    id="cart-drawer-trigger"
+    aria-label="Abrir carrito"
+    aria-haspopup="true"
+    aria-controls="cart-drawer-panel"
+    class="flex list-none cursor-pointer items-center rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
+  >
+    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6 fill-none stroke-current stroke-2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.8h7.2a2 2 0 0 0 2-1.6L20 8H6" />
+      <circle cx="9" cy="20" r="1.5" />
+      <circle cx="17" cy="20" r="1.5" />
+    </svg>
+    <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %>
+      <span data-cart-badge class="ml-1 rounded-full bg-text px-1.5 py-0.5 text-xs font-semibold text-bg"><%= cartCount %></span>
+    <% } %>
+  </summary>
+
+  <div data-menu-panel class="fixed inset-0 z-50">
+    <div data-menu-backdrop class="absolute inset-0 bg-[#1c1917]/50"></div>
+    <aside
+      id="cart-drawer-panel"
+      data-menu-drawer
+      tabindex="-1"
+      aria-label="Carrito"
+      class="relative z-10 ml-auto flex h-full w-full flex-col overflow-y-auto bg-surface shadow-lg sm:w-[420px]"
+    >
+      <div class="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 class="text-sm font-semibold uppercase tracking-wide">Carrito</h2>
+        <%# En mobile el panel ocupa el 100% del ancho (abajo, w-full):
+          el fondo oscuro que cierra al tocar afuera queda sin área
+          tapable, así que este botón es la única forma de cerrar sin
+          vaciar el carrito. menu-animate.js lo engancha genéricamente
+          vía [data-menu-close]. %>
+        <button
+          type="button"
+          data-menu-close
+          aria-label="Cerrar carrito"
+          class="rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current stroke-2">
+            <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+
+      <div aria-live="polite" data-cart-notices class="flex flex-col gap-2 px-4 pt-2 empty:hidden"></div>
+
+      <div data-cart-empty class="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-8 text-center hidden">
+        <p class="text-sm text-textMuted">Todavía no agregaste nada.</p>
+        <a href="/" class="text-sm font-medium text-brandInk underline">Ver catálogo</a>
+      </div>
+
+      <ul data-cart-lines class="flex flex-1 flex-col divide-y divide-border px-4"></ul>
+
+      <div data-cart-footer class="border-t border-border px-4 py-3 hidden">
+        <div class="mb-3 flex items-baseline justify-between text-sm font-semibold">
+          <span>Subtotal</span>
+          <span data-cart-subtotal></span>
+        </div>
+        <a href="/carrito" class="block w-full rounded px-3 py-2 text-center text-sm font-semibold text-text" style="background: var(--brand-gradient);">Ver carrito</a>
+      </div>
+    </aside>
+  </div>
+</details>
+
+<template data-cart-line-template>
+  <li class="flex gap-3 py-3">
+    <img data-line-image alt="" class="h-16 w-12 shrink-0 rounded object-cover">
+    <div class="flex flex-1 flex-col gap-1">
+      <p data-line-name class="text-sm font-medium"></p>
+      <p data-line-attrs class="text-xs text-textMuted"></p>
+      <p data-line-notice class="text-xs font-medium text-error empty:hidden"></p>
+      <div class="mt-1 flex items-center justify-between">
+        <form data-cart-form action="/carrito/actualizar" method="post" class="flex items-center gap-1" novalidate>
+          <input type="hidden" name="_csrf" data-form-csrf>
+          <input type="hidden" name="variant_id" data-form-variant-id>
+          <label class="sr-only" data-line-qty-label>Cantidad</label>
+          <input type="number" name="quantity" min="1" data-line-qty class="w-14 rounded border border-border px-2 py-1 text-sm">
+          <button type="submit" class="text-xs font-medium text-brandInk underline">Actualizar</button>
+        </form>
+        <form data-cart-form action="/carrito/eliminar" method="post">
+          <input type="hidden" name="_csrf" data-form-csrf>
+          <input type="hidden" name="variant_id" data-form-variant-id>
+          <button type="submit" class="text-xs font-medium text-error underline">Quitar</button>
+        </form>
+      </div>
+    </div>
+    <span data-line-total class="shrink-0 text-sm font-semibold"></span>
+  </li>
+</template>

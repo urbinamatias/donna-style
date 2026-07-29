@@ -12,9 +12,14 @@ const carouselSlidesModel = require('../../src/models/carousel-slides');
 
 test('carousel-slides.findActive: ventana de fechas (pasado/futuro/null)', async () => {
   const now = new Date();
+  const twoDaysAgo = new Date(now.getTime() - 1000 * 60 * 60 * 48);
   const past = new Date(now.getTime() - 1000 * 60 * 60 * 24);
   const future = new Date(now.getTime() + 1000 * 60 * 60 * 24);
 
+  // El "vencido" cierra un día ENTERO antes de `now`, nunca en el instante
+  // exacto de `now`: comparar contra `ends_at = now` corre una carrera real
+  // contra el `now()` de Postgres (drift de reloj entre el host de Node y el
+  // contenedor de Postgres, sin margen), y hacía flakear el test.
   const { rows } = await pool.query(
     `INSERT INTO carousel_slides (image_desktop, alt_text, sort_order, is_active, starts_at, ends_at)
      VALUES
@@ -23,7 +28,7 @@ test('carousel-slides.findActive: ventana de fechas (pasado/futuro/null)', async
        ('t-sin-fechas.jpg', 'Slide sin fechas (test)', 902, true, NULL, NULL),
        ('t-inactivo.jpg', 'Slide inactivo (test)', 903, false, NULL, NULL)
      RETURNING id`,
-    [past, now, future]
+    [twoDaysAgo, past, future]
   );
   const insertedIds = rows.map((r) => r.id);
 

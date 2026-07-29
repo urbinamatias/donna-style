@@ -50,10 +50,19 @@
 <header class="sticky top-0 z-30 border-b border-border">
   <div class="absolute inset-0 -z-10 bg-surface/60 backdrop-blur-sm"></div>
   <div class="relative mx-auto flex max-w-[1400px] items-center px-6 py-3 sm:px-8">
-    <%- include('./nav-drawer', { menuTree }) %>
+    <%- include('./nav-drawer', { menuTree: typeof menuTree !== 'undefined' ? menuTree : [] }) %>
 
     <a href="/" class="absolute left-1/2 -translate-x-1/2 shrink-0">
       <%- include('./wordmark', { size: 'md' }) %>
     </a>
+
+    <%# Fase 4: ícono de carrito reintroducido (removido a propósito en Fase
+        3). `absolute right-0`, hermano de nav-drawer dentro del mismo
+        contenedor `.relative` — nunca descendiente de la capa
+        `backdrop-blur-sm` de arriba (technical note de Fase 3: eso
+        encerraría el panel `fixed` del drawer al alto del header). %>
+    <div class="absolute right-0">
+      <%- include('./cart-drawer', { cartCount: typeof cartCount !== 'undefined' ? cartCount : 0 }) %>
+    </div>
   </div>
 </header>

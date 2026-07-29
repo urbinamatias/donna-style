@@ -22,7 +22,7 @@ pedidos, servicio de disponibilidad de variantes (`src/services/availability.js`
 hecho con TDD, 13 tests. Seeds idempotentes (`node db/seed.js`, TRUNCATE +
 reseed, guarda `NODE_ENV=production`).
 
-### Fase 3 — Catálogo ⚠️ implementada, pendiente cerrar el ciclo SDD
+### Fase 3 — Catálogo ✅ cerrada
 **Lo que está construido y funcionando** (probado en vivo por el usuario,
 iterado varias rondas sobre el diseño):
 
@@ -111,24 +111,106 @@ fondo separada (ver `partials/header.ejs`, el `<div class="absolute
 inset-0 -z-10 ... backdrop-blur-sm">` que es hermano, no ancestro, del
 contenido que incluye el drawer).
 
-**Lo que falta para cerrar formalmente la Fase 3 (SDD)**:
-- No se corrió `sdd-verify` ni `sdd-archive` todavía — hubo varias rondas
-  de ajustes de UI después del `sdd-apply` original y antes de verificar.
-  Recomendado: correr `sdd-verify` sobre el estado actual (no sobre el
-  design.md original, que quedó desactualizado en varios puntos de nav —
-  ver punto 2 arriba) antes de pasar a Fase 4.
-- Falta decidir/implementar el lightbox real con zoom de la ficha de
-  producto (diferido a propósito a Fase 7 "Pulido").
-- Buscador (§5.11) sigue sin fase asignada — no se tocó en Fase 3, según lo
-  acordado en el proposal.
+**Ciclo SDD cerrado** (2026-07-29): `sdd-verify` corrido sobre el estado
+actual del código (no sobre el `design.md` original, desactualizado en los
+3 puntos de arriba) — 10/10 tasks completas, reglas de `CLAUDE.md`
+verificadas (SQL parametrizado, `<%= %>` salvo descripción sanitizada, sin
+`innerHTML`, `availability.js` single-sourced). 20/20 tests confirmados
+desde Windows con Postgres levantado. `sdd-archive` corrido después,
+engram-only (no hay `openspec/` en este proyecto). Cadena de trazabilidad
+en Engram: proposal #332 → design #333 → tasks #334 → apply-progress #335
+→ verify-report #336 → archive-report #337.
+
+**Pendiente, no bloqueante**: `design.md` (#333) sigue desactualizado en
+logo/nav/zona de envío — solo higiene de documentación, no afecta el
+cierre.
+
+**Fuera de alcance de Fase 3, diferido a propósito**:
+- Lightbox real con zoom de la ficha de producto → Fase 7 "Pulido".
+- Buscador (§5.11) sigue sin fase asignada.
+
+### Fase 4 — Carrito ✅ cerrada
+
+Carrito 100% en sesión (`req.session.cart`, sin tabla `cart`/`cart_items`),
+respaldado en Postgres vía `express-session` + `connect-pg-simple` con
+tabla `session` propia (migración `006_session.sql`, `createTableIfMissing:
+false` — el auto-create de la librería quedaría fuera de
+`schema_migrations`), TTL rolling de 30 días, poda automática
+(`pruneSessionInterval`). CSRF con synchronizer-token hecho a mano
+(`src/middleware/csrf.js`, ~25 líneas, sin dependencia nueva — `csurf` está
+deprecado). Selectores de talle/color de card y ficha ahora son
+interactivos de verdad (antes estáticos): el servidor precalcula una tabla
+de decisión (`availability.buildDecisionTable`) y el cliente
+(`variant-selector.js`) solo la lee/renderiza, nunca recalcula — mismo
+principio de servicio único que `availability.js`. Cada POST de
+agregar/actualizar/eliminar revalida contra la DB viva, nunca confía en lo
+que manda el cliente. Drawer de carrito + página `/carrito` completa, con
+revalidación de stock automática en cada apertura (ajusta cantidad o saca
+la línea si perdió stock, con aviso inline). Ícono de carrito reincorporado
+al header. 62/62 tests (`node --test`), corridos contra Postgres real.
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #340-#346.
+
+**Bugs reales encontrados en QA manual post-`apply`, todos corregidos**
+(ver `sdd/donna-style-web-phase4-carrito/apply-progress` en Engram para el
+detalle completo):
+1. `/carrito` reventaba (`menuTree is not defined`) porque `cart.js` nunca
+   cargaba el menú/anuncios — esa carga vivía solo en `public.js`, montado
+   después. Se subió el middleware a `app.js` para que aplique a ambos
+   routers.
+2. El manejador de errores de `app.js` no pasaba `csrfToken` de fallback a
+   la página 500, causando un doble fallo si el error original ocurría
+   antes de que corriera `ensureToken`.
+3. **Selectores de variante no respondían al click** (bug bloqueante): la
+   tabla de decisión se embebía con `<%= JSON.stringify(...) %>` dentro de
+   `<script type="application/json">` — ese tag es "raw text" en HTML, el
+   parser nunca decodifica entidades ahí adentro, así que el escape de EJS
+   dejaba el JSON roto (`JSON.parse` fallaba en silencio, sin error de
+   servidor). Se agregó `toScriptJson()` en `src/services/format.js`
+   (neutraliza `<`/`>`/`&` a nivel de JSON, no de entidades HTML) y se
+   cambió a `<%- toScriptJson(...) %>`. **Segunda excepción documentada en
+   `CLAUDE.md` §3** a la regla de "siempre `<%= %>`" (la primera es la
+   descripción del producto vía `sanitize-html`).
+4. Animación de fade no deseada al cambiar de talle/color — sacada entera.
+5. Los botones de talle/color se achicaban apenas cargaba el JS (el
+   render de JS usaba una clase más chica que el render inicial del
+   servidor) — unificados a un tamaño con target táctil de 44px.
+6. `/carrito` no se actualizaba visualmente al cambiar cantidad (aunque el
+   POST funcionaba) — `cart.js` usaba `document.querySelector` (el primero
+   que matchea) para contenedores que el drawer y la página `/carrito`
+   comparten (`data-cart-lines`, etc.), así que la actualización siempre
+   pegaba en el drawer oculto. Corregido a `querySelectorAll` + loop, y
+   `cart.ejs` reestructurado para tener siempre ambas ramas (vacío/con
+   líneas) en el DOM, alternadas por clase, igual que ya hacía el drawer.
+7. Mensajes de validación en inglés (tooltip nativo del navegador para
+   `min`/`max` en cantidad) — se agregó `novalidate` a los 3 forms
+   afectados, ya que el servidor limita la cantidad al stock vivo en
+   silencio.
+
+**También corregido en esta fase, sin relación al carrito**: flake real en
+`test/models/carousel-slides.test.js` — comparaba `ends_at` contra el
+instante exacto de `now()`, sin margen frente al drift de reloj entre
+Node/WSL y el contenedor de Postgres. Se le dio 24-48hs de margen.
+
+**Bug adicional encontrado post-`archive`, en QA mobile** (Fase 4 ya
+estaba cerrada en Engram #340-#346 cuando apareció; documentado acá en vez
+de reabrir el ciclo SDD):
+8. En mobile el panel del carrito ocupa el 100% del ancho (`w-full`, solo
+   pasa a `sm:w-[420px]` en desktop), así que el fondo oscuro que cierra al
+   tocar afuera quedaba sin área tapable — la única forma de cerrar era
+   vaciar el carrito y usar el link "Ver catálogo". A diferencia del drawer
+   de navegación (`nav-drawer.ejs`), que sí deja `w-[85vw]` de backdrop
+   visible incluso en mobile.
+   Arreglado con un botón ✕ visible dentro del panel
+   (`cart-drawer.ejs`), enganchado de forma **genérica** en
+   `menu-animate.js` vía el atributo `data-menu-close` (nuevo, sumado al
+   set ya existente `data-menu-panel/backdrop/drawer`) — cualquier drawer
+   futuro que lo necesite solo tiene que agregar un botón con ese atributo
+   adentro, sin tocar el JS de nuevo. Sin JS, el botón no hace nada (mismo
+   nivel de degradación aceptable que ya tenía el cierre por click-afuera).
 
 ## Fases sin empezar
 
-4. **Carrito** — sesión, drawer (el ícono de carrito fue removido a
-   propósito del header en Fase 3, hay que reincorporarlo acá), página
-   `/carrito`, revalidación de stock. El botón "Agregar" de card/ficha ya
-   está listo visualmente, solo falta sacarle `disabled` y conectar el
-   POST real.
 5. **Checkout por WhatsApp** — persistencia del pedido, generación del
    mensaje, redirección, página pública `/pedido/{token}`. `nanoid` ya está
    instalado (se agregó en Fase 2, sin uso real todavía).

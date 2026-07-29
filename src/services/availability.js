@@ -110,10 +110,64 @@ function isVariantAvailable(variants, selection) {
   return variant !== null && variant.stock > 0;
 }
 
+// Fase 4 (design.md D4): serializa §3.2 en una tabla inerte para el cliente.
+// Compuesta EXCLUSIVAMENTE a partir de las funciones de arriba — no
+// reimplementa ninguna regla, solo arma la forma que consume
+// variant-selector.js (renderer-only, nunca recalcula disponibilidad).
+function decisionKey(size, color) {
+  return `${size ?? ''}|${color ?? ''}`;
+}
+
+function buildDecisionTable(variants) {
+  const { hasAnyStock, axes: axesLive, defaultSelection } = computeAvailability(variants);
+  const axes = axesPresent(variants);
+
+  const table = {
+    hasAnyStock,
+    axes,
+    values: {},
+    default: defaultSelection,
+    matrix: {},
+    variants: {},
+  };
+
+  if (!hasAnyStock) return table;
+
+  for (const axis of axes) {
+    table.values[axis] = axesLive[axis] || [];
+  }
+
+  // Matriz cruzada (regla 2): para cada eje, para cada valor vivo de ese eje,
+  // los valores vivos del OTRO eje una vez fijado ese valor.
+  for (const axis of axes) {
+    table.matrix[axis] = {};
+    for (const value of table.values[axis]) {
+      table.matrix[axis][value] = {};
+      for (const otherAxis of axes) {
+        if (otherAxis === axis) continue;
+        table.matrix[axis][value][otherAxis] = getAvailableAxisValues(variants, otherAxis, {
+          [axis]: value,
+        });
+      }
+    }
+  }
+
+  // Regla sold-out-desaparece: solo variantes con stock entran al mapa, con
+  // los datos vivos (id/stock/price) que el carrito necesita para el POST.
+  for (const v of variants) {
+    if (v.stock <= 0) continue;
+    const key = axes.length > 0 ? decisionKey(axes.includes('size') ? v.size : null, axes.includes('color') ? v.color : null) : '';
+    table.variants[key] = { id: v.id, stock: v.stock, price: v.price_override ?? v.price };
+  }
+
+  return table;
+}
+
 module.exports = {
   computeAvailability,
   getAvailableAxisValues,
   getDefaultSelection,
   findVariant,
   isVariantAvailable,
+  buildDecisionTable,
 };
