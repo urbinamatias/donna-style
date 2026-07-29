@@ -1,0 +1,18 @@
+<%# ------------------------------------------------------------------
+  Breadcrumbs (§5.4, §5.6). Recibe `breadcrumbs`: [{name, url|null}]. El
+  último elemento (sin url) es la página actual.
+------------------------------------------------------------------ %>
+<nav aria-label="Breadcrumb" class="mx-auto max-w-[1400px] px-4 pt-4 text-xs text-textMuted">
+  <ol class="flex flex-wrap items-center gap-1">
+    <% breadcrumbs.forEach(function (crumb, i) { %>
+      <li class="flex items-center gap-1">
+        <% if (crumb.url) { %>
+          <a href="<%= crumb.url %>" class="hover:text-brandInk"><%= crumb.name %></a>
+        <% } else { %>
+          <span aria-current="page" class="text-text"><%= crumb.name %></span>
+        <% } %>
+        <% if (i < breadcrumbs.length - 1) { %><span aria-hidden="true">/</span><% } %>
+      </li>
+    <% }) %>
+  </ol>
+</nav>

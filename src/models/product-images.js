@@ -21,4 +21,12 @@ async function bulkCreate(productId, images) {
   return rows;
 }
 
-module.exports = { bulkCreate };
+async function findByProductId(productId) {
+  const { rows } = await db.query(
+    'SELECT * FROM product_images WHERE product_id = $1 ORDER BY is_primary DESC, sort_order',
+    [productId]
+  );
+  return rows;
+}
+
+module.exports = { bulkCreate, findByProductId };

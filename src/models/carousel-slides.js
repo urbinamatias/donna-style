@@ -21,4 +21,17 @@ async function create({
   return rows[0];
 }
 
-module.exports = { create };
+// Slides activos (§5.3): is_active + ventana de fechas starts_at/ends_at,
+// ambas opcionales. Un slide sin fechas cargadas siempre cuenta como activo.
+async function findActive() {
+  const { rows } = await db.query(
+    `SELECT * FROM carousel_slides
+     WHERE is_active = true
+       AND (starts_at IS NULL OR starts_at <= now())
+       AND (ends_at IS NULL OR ends_at >= now())
+     ORDER BY sort_order`
+  );
+  return rows;
+}
+
+module.exports = { create, findActive };

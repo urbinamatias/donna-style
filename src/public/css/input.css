@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Wordmark "Donna Style" (reemplaza el logo.png por texto, ver
+   partials/wordmark.ejs). Fuente variable auto-hosteada, sin CDN. */
+@font-face {
+  font-family: 'Merriweather';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/merriweather-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Merriweather';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/merriweather-700.woff2') format('woff2');
+}
+
 :root {
   /* Marca — solo en logo, botones de acción, bordes activos y barra de anuncios */
   --brand:          #fa9825;
@@ -21,4 +38,45 @@
   /* Semánticos */
   --success:        #15803d;
   --error:          #b91c1c;
+}
+
+/* Barra de anuncios (§5.1): loop horizontal continuo, derecha a izquierda.
+   Se duplica el contenido una vez (segunda copia con aria-hidden) y se
+   desliza -50%: como la copia es idéntica, el reinicio es imperceptible.
+   Velocidad constante a propósito => linear, la única excepción a la regla
+   general de "nunca linear" de §4.3 (esa regla es para transiciones de
+   estado discretas — hover/toast/drawer/modal — no para un ticker que
+   pidieron "en rotación constante"). */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee {
+  /* 24s era la velocidad correcta cuando cada mitad tenía la tanda de
+     mensajes una sola vez; ahora se repite 6 veces (ver header.ejs) para
+     garantizar continuidad, así que la duración escala x6 para mantener
+     la misma velocidad en píxeles por segundo, no la misma duración. */
+  animation: marquee 144s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    animation: none;
+  }
+  .marquee > [aria-hidden='true'] {
+    display: none;
+  }
+}
+
+/* Card de producto (§5.5): cambio a la segunda foto en hover, solo en
+   desktop con mouse real (§4.4 — todo hover va dentro de
+   @media (hover: hover), si no el estado queda pegado en táctil). */
+@media (hover: hover) {
+  .card-media:hover .card-media-secondary,
+  .card-media:focus-within .card-media-secondary {
+    opacity: 1;
+  }
+  .card-media:hover .card-media-primary,
+  .card-media:focus-within .card-media-primary {
+    opacity: 0;
+  }
 }

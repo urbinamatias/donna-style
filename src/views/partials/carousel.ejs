@@ -1,0 +1,63 @@
+<%# ------------------------------------------------------------------
+  Carrusel de promociones (§5.3). `slides` = carouselSlidesModel.findActive().
+  0 slides → esta vista no renderiza nada (ni wrapper, ni altura reservada,
+  §4.5). 1 slide → imagen fija, cero JS. 2+ → carrusel completo, carga
+  carousel.js (wireado desde pages/home.ejs vía bodyScripts).
+------------------------------------------------------------------ %>
+<% if (slides.length === 1) { %>
+  <% const slide = slides[0]; %>
+  <div class="mx-auto max-w-[1400px] px-4 py-4">
+    <% if (slide.link_url) { %><a href="<%= slide.link_url %>"><% } %>
+      <img
+        src="/img/<%= slide.image_desktop %>"
+        alt="<%= slide.alt_text %>"
+        fetchpriority="high"
+        class="w-full rounded-md object-cover"
+        style="aspect-ratio: 2.5 / 1;"
+      >
+    <% if (slide.link_url) { %></a><% } %>
+  </div>
+<% } else if (slides.length >= 2) { %>
+  <div class="mx-auto max-w-[1400px] px-4 py-4">
+    <div
+      data-carousel
+      class="relative overflow-hidden rounded-md"
+      style="aspect-ratio: 2.5 / 1;"
+      role="region"
+      aria-roledescription="carrusel"
+      aria-label="Promociones"
+    >
+      <% slides.forEach(function (slide, i) { %>
+        <div data-carousel-slide class="absolute inset-0 transition-opacity duration-200<% if (i !== 0) { %> opacity-0 pointer-events-none<% } %>" aria-hidden="<%= i !== 0 %>">
+          <% if (slide.link_url) { %><a href="<%= slide.link_url %>"><% } %>
+            <img
+              src="/img/<%= slide.image_desktop %>"
+              alt="<%= slide.alt_text %>"
+              <% if (i === 0) { %>fetchpriority="high"<% } else { %>loading="lazy"<% } %>
+              class="h-full w-full object-cover"
+            >
+          <% if (slide.link_url) { %></a><% } %>
+        </div>
+      <% }) %>
+
+      <button type="button" data-carousel-prev aria-label="Slide anterior" class="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-surface/90 shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+        <svg aria-hidden="true" viewBox="0 0 20 20" class="h-4 w-4 fill-current"><path d="M12 3l-7 7 7 7"/></svg>
+      </button>
+      <button type="button" data-carousel-next aria-label="Slide siguiente" class="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-surface/90 shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+        <svg aria-hidden="true" viewBox="0 0 20 20" class="h-4 w-4 fill-current"><path d="M8 3l7 7-7 7"/></svg>
+      </button>
+
+      <div data-carousel-dots class="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
+        <% slides.forEach(function (slide, i) { %>
+          <button
+            type="button"
+            data-carousel-dot
+            aria-label="Ir al slide <%= i + 1 %>"
+            aria-current="<%= i === 0 %>"
+            class="h-2.5 w-2.5 rounded-full <%= i === 0 ? 'bg-brand' : 'bg-surface/80' %>"
+          ></button>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+<% } %>

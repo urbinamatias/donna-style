@@ -1,11 +1,10 @@
 <%# ------------------------------------------------------------------
-  Reservado para el patrón de layout compartido (§9 estructura del
-  proyecto). Todavía no se usa vía `include()`: ese mecanismo requiere
-  `<%- %>` (sin escapar) porque compone HTML ya renderizado, y la regla
-  dura de Fase 1 es no usar `<%- %>` en ninguna vista mientras no exista
-  contenido dinámico real que justifique sanitizarlo (§8.1). `pages/home.ejs`
-  es por ahora un documento autocontenido. Este layout se activa recién
-  cuando Fase 3 (Catálogo) introduzca partials reales.
+  Layout compartido (§9). Activado en Fase 3: cada ruta publica renderiza
+  este archivo pasando "view" (path relativo a /views de la pagina real) +
+  sus locals; el layout compone header/footer alrededor con include().
+  include() es composicion de templates ya controlados por el proyecto,
+  no salida de datos dinamicos sin sanitizar - la regla de escapar siempre
+  sigue aplicando DENTRO de cada partial para cualquier dato real (§8.1).
 ------------------------------------------------------------------ %>
 <!DOCTYPE html>
 <html lang="es">
@@ -13,8 +12,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %></title>
+  <% if (typeof metaDescription !== 'undefined' && metaDescription) { %>
+  <meta name="description" content="<%= metaDescription %>">
+  <% } %>
+  <link rel="icon" href="/img/logo-cuadrado.png">
   <link rel="stylesheet" href="/css/output.css">
 </head>
-<body>
+<body class="bg-bg text-text min-h-screen flex flex-col">
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-surface focus:text-text focus:p-3">Saltar al contenido</a>
+  <%- include('../partials/header') %>
+  <main id="main-content" class="flex-1">
+    <%- include(view, locals) %>
+  </main>
+  <%- include('../partials/footer') %>
+  <script src="/js/menu-animate.js" defer></script>
+  <% if (typeof bodyScripts !== 'undefined') { %>
+    <% bodyScripts.forEach(function (src) { %>
+      <script src="<%= src %>" defer></script>
+    <% }) %>
+  <% } %>
 </body>
 </html>

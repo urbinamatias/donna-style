@@ -3,6 +3,9 @@ module.exports = {
   content: ['./src/views/**/*.ejs', './src/public/js/**/*.js'],
   theme: {
     extend: {
+      fontFamily: {
+        brand: ['Merriweather', 'Georgia', 'serif'],
+      },
       colors: {
         brand: 'var(--brand)',
         brandTo: 'var(--brand-to)',

@@ -1,0 +1,77 @@
+<%# Listado de categoría (§5.4). Filtro de precio + orden viven en la query
+    string (URL compartible); el formulario es GET plano — funciona con JS
+    deshabilitado. Categoría sin productos activos: estado vacío con enlace
+    al catálogo general, nunca grilla en blanco ni 404 (ver public.js: un
+    slug inexistente sí es 404; esto es para un slug válido sin productos). %>
+<%
+  function buildQuery(overrides) {
+    const params = new URLSearchParams();
+    if (priceMin !== null) params.set('price_min', priceMin);
+    if (priceMax !== null) params.set('price_max', priceMax);
+    if (sort !== 'newest') params.set('sort', sort);
+    Object.entries(overrides).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') params.delete(k);
+      else params.set(k, v);
+    });
+    const qs = params.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
+  }
+  const sortOptions = [
+    { value: 'newest', label: 'Más nuevo' },
+    { value: 'oldest', label: 'Más viejo' },
+    { value: 'price_asc', label: 'Precio: menor a mayor' },
+    { value: 'price_desc', label: 'Precio: mayor a menor' },
+    { value: 'az', label: 'Nombre: A-Z' },
+    { value: 'za', label: 'Nombre: Z-A' },
+  ];
+%>
+<%- include('../partials/breadcrumbs', { breadcrumbs }) %>
+
+<section class="mx-auto max-w-[1400px] px-4 py-6">
+  <h1 class="mb-6 text-2xl font-semibold"><%= category.name %></h1>
+
+  <form method="get" action="<%= basePath %>" class="mb-6 flex flex-wrap items-end gap-4 border-b border-border pb-6">
+    <div class="flex flex-col gap-1">
+      <label for="price_min" class="text-xs text-textMuted">Precio mínimo</label>
+      <input type="number" min="0" step="1" id="price_min" name="price_min" value="<%= priceMin !== null ? priceMin : '' %>" class="w-28 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="price_max" class="text-xs text-textMuted">Precio máximo</label>
+      <input type="number" min="0" step="1" id="price_max" name="price_max" value="<%= priceMax !== null ? priceMax : '' %>" class="w-28 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="sort" class="text-xs text-textMuted">Ordenar por</label>
+      <select id="sort" name="sort" class="rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+        <% sortOptions.forEach(function (opt) { %>
+          <option value="<%= opt.value %>" <%= sort === opt.value ? 'selected' : '' %>><%= opt.label %></option>
+        <% }) %>
+      </select>
+    </div>
+    <button type="submit" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Aplicar</button>
+  </form>
+
+  <% if (products.length === 0) { %>
+    <div class="py-16 text-center">
+      <p class="mb-4 text-textMuted">Todavía no hay productos acá.</p>
+      <a href="/" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Volver al catálogo</a>
+    </div>
+  <% } else { %>
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <% products.forEach(function (product) { %>
+        <%- include('../partials/product-card', { product }) %>
+      <% }) %>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <nav aria-label="Paginación" class="mt-8 flex flex-wrap items-center justify-center gap-2">
+        <% for (let p = 1; p <= totalPages; p++) { %>
+          <% if (p === page) { %>
+            <span aria-current="page" class="rounded border border-[var(--brand)] px-3 py-1 text-sm font-semibold"><%= p %></span>
+          <% } else { %>
+            <a href="<%= buildQuery({ page: p === 1 ? null : p }) %>" class="rounded border border-border px-3 py-1 text-sm hover:border-border-strong"><%= p %></a>
+          <% } %>
+        <% } %>
+      </nav>
+    <% } %>
+  <% } %>
+</section>

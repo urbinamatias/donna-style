@@ -13,7 +13,7 @@ INSTAGRAM:            @donna_styleok
 EMAIL_CONTACTO:       yesi2682@hotmail.com
 DIRECCIONES:          (no tiene local físico)
 CUIT:                 27-29456245-7
-ZONA_DE_ENVIO:        Córdoba Capital
+ZONA_DE_ENVIO:        Todo el país
 ```
 
 Todos estos valores van en variables de entorno con estos nombres, nunca hardcodeados en las vistas. Sumá también:

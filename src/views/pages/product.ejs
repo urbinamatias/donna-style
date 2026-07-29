@@ -1,0 +1,150 @@
+<%# Ficha de producto (§5.6). Selectores: estáticos (mismo criterio que la
+    card, §5.5 — la interactividad real es Fase 4). Galería: thumbnail-click
+    swap simple, sin lightbox/zoom (deferido a Fase 7, decisión confirmada
+    en tasks.md). Descripción: única salida sin escapar del proyecto,
+    sanitizada en public.js antes de llegar acá (§8.1). %>
+<%
+  const breadcrumbCategory = product.categories[0] || null;
+  const breadcrumbs = [
+    { name: 'Inicio', url: '/' },
+  ];
+  if (breadcrumbCategory) breadcrumbs.push({ name: breadcrumbCategory.name, url: `/${breadcrumbCategory.slug}` });
+  breadcrumbs.push({ name: product.name, url: null });
+
+  const primaryImage = product.images.find((img) => img.is_primary) || product.images[0] || null;
+  const hasDiscount = product.compare_at_price !== null && product.compare_at_price !== undefined;
+  const discountPct = hasDiscount
+    ? Math.round((1 - Number(product.base_price) / Number(product.compare_at_price)) * 100)
+    : 0;
+  const inStockVariants = product.variants.filter((v) => v.stock > 0);
+  const showSelectors = product.availability.hasAnyStock && inStockVariants.length > 1;
+  const defaultVariant = product.variants.find((v) =>
+    Object.entries(product.availability.defaultSelection).every(([axis, val]) => v[axis] === val)
+  ) || (inStockVariants.length === 1 ? inStockVariants[0] : null);
+  const effectivePrice = defaultVariant && defaultVariant.price_override !== null
+    ? defaultVariant.price_override
+    : product.base_price;
+  const productUrl = `${storeConfig.SITE_URL}/productos/${product.slug}`;
+  const shareText = `Mirá ${product.name} en ${storeConfig.NOMBRE_TIENDA}: ${productUrl}`;
+%>
+<%- include('../partials/breadcrumbs', { breadcrumbs }) %>
+
+<section class="mx-auto grid max-w-[1400px] gap-8 px-4 py-6 md:grid-cols-2">
+  <div>
+    <div class="aspect-[3/4] overflow-hidden rounded-md bg-bg">
+      <% if (primaryImage) { %>
+        <img id="gallery-main-image" src="/img/<%= primaryImage.filename %>" alt="<%= primaryImage.alt_text %>" class="h-full w-full object-cover" fetchpriority="high">
+      <% } %>
+    </div>
+    <% if (product.images.length > 1) { %>
+      <div data-gallery-thumbs class="mt-3 flex gap-2 overflow-x-auto">
+        <% product.images.forEach(function (img, i) { %>
+          <button
+            type="button"
+            data-gallery-thumb
+            data-src="/img/<%= img.filename %>"
+            data-alt="<%= img.alt_text %>"
+            aria-label="Ver foto <%= i + 1 %> de <%= product.name %>"
+            aria-current="<%= img === primaryImage %>"
+            class="h-16 w-12 shrink-0 overflow-hidden rounded border <%= img === primaryImage ? 'border-[var(--brand)]' : 'border-border' %>"
+          >
+            <img src="/img/<%= img.filename %>" alt="" aria-hidden="true" class="h-full w-full object-cover">
+          </button>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <div>
+    <h1 class="text-2xl font-semibold mb-2"><%= product.name %></h1>
+
+    <div class="mb-4 flex items-baseline gap-2">
+      <span class="text-xl font-semibold"><%= formatPrice(effectivePrice) %></span>
+      <% if (hasDiscount) { %>
+        <span class="text-sm text-textMuted line-through"><%= formatPrice(product.compare_at_price) %></span>
+        <span class="rounded bg-text px-2 py-1 text-xs font-semibold text-bg"><%= discountPct %>% OFF</span>
+      <% } %>
+      <% if (product.free_shipping) { %>
+        <span class="rounded border border-border-strong px-2 py-1 text-xs font-medium">Envío gratis</span>
+      <% } %>
+    </div>
+
+    <% if (!product.availability.hasAnyStock) { %>
+      <p class="mb-4 font-medium text-error">Sin stock</p>
+    <% } else { %>
+      <% if (showSelectors) { %>
+        <div aria-live="polite" class="sr-only" data-variant-live-region></div>
+        <div class="mb-4 flex flex-col gap-3 transition-opacity duration-150">
+          <% ['size', 'color'].forEach(function (axis) { %>
+            <% if (product.availability.axes[axis] && product.availability.axes[axis].length > 0) { %>
+              <div role="group" aria-label="<%= axis === 'size' ? 'Talle' : 'Color' %>">
+                <p class="mb-1 text-xs font-medium text-textMuted"><%= axis === 'size' ? 'Talle' : 'Color' %></p>
+                <div class="flex flex-wrap gap-2">
+                  <% product.availability.axes[axis].forEach(function (value) { %>
+                    <button
+                      type="button"
+                      aria-pressed="<%= product.availability.defaultSelection[axis] === value %>"
+                      class="rounded border px-3 py-2 text-sm <%= product.availability.defaultSelection[axis] === value ? 'border-[var(--brand)] font-semibold' : 'border-border' %>"
+                    ><%= value %></button>
+                  <% }) %>
+                </div>
+              </div>
+            <% } %>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <% if (defaultVariant && defaultVariant.stock <= 2) { %>
+        <p class="mb-4 text-sm font-medium text-error">
+          <%= defaultVariant.stock === 1 ? '¡Es el último!' : `Quedan ${defaultVariant.stock}` %>
+        </p>
+      <% } %>
+
+      <% if (defaultVariant) { %>
+        <div class="mb-4 flex items-center gap-2">
+          <label for="quantity" class="text-sm font-medium">Cantidad</label>
+          <input type="number" id="quantity" name="quantity" min="1" max="<%= defaultVariant.stock %>" value="1" class="w-20 rounded border border-border px-2 py-1 text-sm">
+        </div>
+      <% } %>
+    <% } %>
+
+    <button type="button" disabled class="mb-6 w-full rounded px-4 py-3 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70 md:w-auto" style="background: var(--brand-gradient);">
+      <% if (!product.availability.hasAnyStock) { %>Sin stock<% } else { %>Agregar al carrito<% } %>
+    </button>
+
+    <% if (product.descriptionHtml) { %>
+      <section class="mb-6 border-t border-border pt-4">
+        <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide">Descripción</h2>
+        <div class="prose prose-sm max-w-none text-sm"><%- product.descriptionHtml %></div>
+      </section>
+    <% } %>
+
+    <% if (product.size_guide) { %>
+      <details class="mb-6 border-t border-border pt-4">
+        <summary class="cursor-pointer text-sm font-semibold uppercase tracking-wide">Guía de talles</summary>
+        <p class="mt-2 text-sm text-textMuted"><%= product.size_guide %></p>
+      </details>
+    <% } %>
+
+    <div class="border-t border-border pt-4">
+      <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide">Compartir</h2>
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <a href="https://wa.me/?text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener noreferrer" class="rounded border border-border px-3 py-2 hover:border-border-strong">WhatsApp</a>
+        <a href="https://instagram.com/<%= storeConfig.INSTAGRAM.replace('@', '') %>" target="_blank" rel="noopener noreferrer" class="rounded border border-border px-3 py-2 hover:border-border-strong">Instagram</a>
+        <button type="button" data-copy-link data-url="<%= productUrl %>" class="rounded border border-border px-3 py-2 hover:border-border-strong">Copiar link</button>
+        <span data-copy-link-status class="text-xs text-textMuted" aria-live="polite"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<% if (related.length > 0) { %>
+  <section class="mx-auto max-w-[1400px] px-4 py-8">
+    <h2 class="mb-4 text-xl font-semibold">Productos similares</h2>
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <% related.forEach(function (relatedProduct) { %>
+        <%- include('../partials/product-card', { product: relatedProduct }) %>
+      <% }) %>
+    </div>
+  </section>
+<% } %>

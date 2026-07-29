@@ -1,15 +1,22 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %></title>
-  <link rel="stylesheet" href="/css/output.css">
-</head>
-<body>
-  <main class="min-h-screen bg-bg flex flex-col items-center justify-center gap-6 p-8">
-    <img src="/img/logo.png" alt="<%= title %>" class="max-h-52">
-    <h1 class="text-brandInk text-3xl font-bold"><%= title %></h1>
-  </main>
-</body>
-</html>
+<%# Home (§5.2). Orden vertical saltando lo que no exista (§4.5): banda de
+    marca (siempre), carrusel (0/1/2+, resuelto en partials/carousel.ejs),
+    destacados (solo si hay), banner secundario (no implementado — no hay
+    fuente de datos para él todavía, así que no se renderiza nada). %>
+<h1 class="sr-only"><%= storeConfig.NOMBRE_TIENDA %></h1>
+
+<section class="mx-auto flex max-w-[1400px] justify-center px-4 py-6">
+  <%- include('../partials/wordmark', { size: 'lg' }) %>
+</section>
+
+<%- include('../partials/carousel', { slides }) %>
+
+<% if (featured.length > 0) { %>
+  <section class="mx-auto max-w-[1400px] px-4 py-8">
+    <h2 class="mb-4 text-xl font-semibold">Destacados</h2>
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <% featured.forEach(function (product) { %>
+        <%- include('../partials/product-card', { product }) %>
+      <% }) %>
+    </div>
+  </section>
+<% } %>

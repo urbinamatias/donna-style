@@ -15,10 +15,12 @@ const productsModel = require('../src/models/products');
 const productImagesModel = require('../src/models/product-images');
 const variantsModel = require('../src/models/variants');
 const siteSettingsModel = require('../src/models/site-settings');
+const carouselSlidesModel = require('../src/models/carousel-slides');
 
 const categoryTree = require('./seeds/categories');
 const productFixtures = require('./seeds/products');
 const siteSettingsFixtures = require('./seeds/site-settings');
+const carouselSlideFixtures = require('./seeds/carousel-slides');
 
 async function truncateDomainTables() {
   // admin_users queda afuera a propósito: el seed solo crea el admin de
@@ -35,14 +37,19 @@ async function truncateDomainTables() {
 
 async function seedCategories() {
   const slugToId = {};
-  for (const parent of categoryTree) {
-    const row = await categoriesModel.create({ name: parent.name, slug: parent.slug });
+  for (const [parentIndex, parent] of categoryTree.entries()) {
+    const row = await categoriesModel.create({
+      name: parent.name,
+      slug: parent.slug,
+      sortOrder: parentIndex,
+    });
     slugToId[parent.slug] = row.id;
-    for (const child of parent.children) {
+    for (const [childIndex, child] of parent.children.entries()) {
       const childRow = await categoriesModel.create({
         name: child.name,
         slug: child.slug,
         parentId: row.id,
+        sortOrder: childIndex,
       });
       slugToId[child.slug] = childRow.id;
     }
@@ -82,6 +89,15 @@ async function seedSiteSettings() {
   return entries.length;
 }
 
+async function seedCarouselSlides() {
+  let created = 0;
+  for (const fixture of carouselSlideFixtures) {
+    await carouselSlidesModel.create(fixture);
+    created += 1;
+  }
+  return created;
+}
+
 async function main() {
   try {
     console.log('Reseteando tablas de dominio (TRUNCATE)...');
@@ -98,6 +114,10 @@ async function main() {
     console.log('Sembrando textos institucionales (site_settings)...');
     const settingsCreated = await seedSiteSettings();
     console.log(`  ${settingsCreated} claves de configuración creadas.`);
+
+    console.log('Sembrando slides del carrusel (§5.3)...');
+    const slidesCreated = await seedCarouselSlides();
+    console.log(`  ${slidesCreated} slides creados.`);
 
     console.log('Seed completado.');
   } catch (err) {

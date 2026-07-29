@@ -1,0 +1,14 @@
+<%# ------------------------------------------------------------------
+  Wordmark de texto (reemplaza el logo.png en header/home/footer, a
+  pedido: el PNG tiene fondo de color que contrasta mal con el fondo
+  blanco del sitio). Tipografía Merriweather auto-hosteada (§8.1: sin
+  CDN de terceros en producción). "Donna" en negrita, "Style" sin
+  peso extra — mismo criterio en todos los tamaños.
+
+  Recibe `size` local: 'sm' (footer) | 'md' (header, como título principal
+  del sitio) | 'lg' (banda de marca home).
+------------------------------------------------------------------ %>
+<% var sizeClass = size === 'lg' ? 'text-4xl md:text-5xl' : size === 'md' ? 'text-2xl' : 'text-xl'; %>
+<span class="font-brand text-text <%= sizeClass %>">
+  <span class="font-bold">Donna</span><span class="font-normal"> Style</span>
+</span>

@@ -1,0 +1,46 @@
+<%# ------------------------------------------------------------------
+  Footer (§5.1, §8.1 seguridad, §0 sin local físico). Solo enlaza a rutas
+  que existen en esta fase (home + categorías) más enlaces externos
+  (WhatsApp, Instagram, mail) — nada de /envios, /cambios, etc. todavía
+  (§5.10 no tiene fase dueña, ver design.md tabla de decisiones). El bloque
+  de direcciones no se renderiza porque no hay local físico cargado (§0,
+  §4.5). El bloque legal (CUIT, Defensa del Consumidor, botón de
+  arrepentimiento) es texto/enlace externo estático, no una página interna.
+------------------------------------------------------------------ %>
+<footer class="border-t border-border bg-surface">
+  <div class="mx-auto max-w-[1400px] px-4 py-10 grid gap-8 md:grid-cols-3">
+    <div>
+      <div class="mb-3"><%- include('./wordmark', { size: 'sm' }) %></div>
+      <p class="text-sm text-textMuted">Indumentaria femenina. Envíos a todo el país, coordinados por WhatsApp.</p>
+    </div>
+
+    <nav aria-label="Categorías" class="text-sm">
+      <h2 class="font-semibold mb-3 uppercase tracking-wide">Categorías</h2>
+      <ul class="space-y-2">
+        <% (typeof menuTree !== 'undefined' ? menuTree : []).forEach(function (parent) { %>
+          <li><a href="/<%= parent.slug %>" class="text-textMuted hover:text-brandInk"><%= parent.name %></a></li>
+        <% }) %>
+      </ul>
+    </nav>
+
+    <div class="text-sm">
+      <h2 class="font-semibold mb-3 uppercase tracking-wide">Contacto</h2>
+      <ul class="space-y-2 text-textMuted">
+        <li><a href="https://wa.me/<%= storeConfig.WHATSAPP_ADMIN %>" class="hover:text-brandInk" rel="noopener noreferrer" target="_blank">WhatsApp</a></li>
+        <li><a href="https://instagram.com/<%= storeConfig.INSTAGRAM.replace('@', '') %>" class="hover:text-brandInk" rel="noopener noreferrer" target="_blank"><%= storeConfig.INSTAGRAM %></a></li>
+        <li><a href="mailto:<%= storeConfig.EMAIL_CONTACTO %>" class="hover:text-brandInk"><%= storeConfig.EMAIL_CONTACTO %></a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="border-t border-border">
+    <div class="mx-auto max-w-[1400px] px-4 py-6 text-xs text-textMuted space-y-2">
+      <p><%= storeConfig.NOMBRE_TIENDA %> — CUIT <%= storeConfig.CUIT %></p>
+      <p>
+        <a href="https://www.argentina.gob.ar/produccion/defensadelconsumidor" class="underline hover:text-brandInk" rel="noopener noreferrer" target="_blank">Defensa del Consumidor</a>
+        ·
+        <a href="https://www.argentina.gob.ar/produccion/defensadelconsumidor/boton-de-arrepentimiento" class="underline hover:text-brandInk" rel="noopener noreferrer" target="_blank">Botón de arrepentimiento</a>
+      </p>
+    </div>
+  </div>
+</footer>

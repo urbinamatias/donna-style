@@ -1,0 +1,59 @@
+<%# ------------------------------------------------------------------
+  Header (§5.1): barra de anuncios + header sticky con logo + menú de
+  categorías. Fase 3 NO incluye ícono de carrito ni buscador (decisión
+  explícita, confirmada en el proposal — ambos quedan diferidos a sus
+  fases dueñas: carrito → Fase 4, buscador → sin fase asignada
+  todavía). Renderizar un ícono no funcional violaría el principio de
+  ausencia en la práctica.
+
+  El ícono de 3 líneas a la izquierda abre el drawer lateral
+  (nav-drawer.ejs), que contiene "Inicio" y "Productos" — este último
+  ya no vive suelto en el header. El wordmark queda centrado de
+  verdad: posicionado en absoluto respecto del propio header, no por
+  balance de flex (que dependería de que ambos lados pesen igual).
+------------------------------------------------------------------ %>
+<%
+  var items = typeof announcementItems !== 'undefined' ? announcementItems : [];
+  // El truco de "duplicar y desplazar -50%" solo es continuo si cada mitad
+  // ya es más ancha que la pantalla; si el texto es corto, queda hueco a
+  // la derecha antes de reiniciar. Repetimos la tanda de mensajes varias
+  // veces por mitad para garantizar que siempre sobre texto, sin importar
+  // el ancho de pantalla ni cuántos mensajes haya cargados.
+  var REPEATS = 6;
+  var repeatedItems = [];
+  for (var r = 0; r < REPEATS; r++) repeatedItems = repeatedItems.concat(items);
+%>
+<% if (items.length > 0) { %>
+  <div class="overflow-hidden py-2 text-sm font-medium uppercase tracking-wide text-text" style="background: var(--brand-gradient);">
+    <div class="marquee flex w-max">
+      <div class="flex shrink-0 items-center">
+        <% repeatedItems.forEach(function (item) { %>
+          <span class="px-6"><%= item %></span>
+        <% }) %>
+      </div>
+      <div class="flex shrink-0 items-center" aria-hidden="true">
+        <% repeatedItems.forEach(function (item) { %>
+          <span class="px-6"><%= item %></span>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+<% } %>
+<%# El difuminado (backdrop-blur) va en una capa de fondo aparte, no en
+    <header> directamente: backdrop-filter crea un "containing block"
+    para los descendientes con position:fixed, así que si el drawer
+    (nav-drawer.ejs) fuera descendiente de un elemento con blur, su panel
+    fixed quedaría encerrado en el alto del header en vez de ocupar toda
+    la ventana. Al ser la capa de fondo un hermano del contenido (no un
+    ancestro del drawer), el header queda transparente + difuminado sin
+    romper el panel. %>
+<header class="sticky top-0 z-30 border-b border-border">
+  <div class="absolute inset-0 -z-10 bg-surface/60 backdrop-blur-sm"></div>
+  <div class="relative mx-auto flex max-w-[1400px] items-center px-6 py-3 sm:px-8">
+    <%- include('./nav-drawer', { menuTree }) %>
+
+    <a href="/" class="absolute left-1/2 -translate-x-1/2 shrink-0">
+      <%- include('./wordmark', { size: 'md' }) %>
+    </a>
+  </div>
+</header>
