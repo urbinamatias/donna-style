@@ -209,11 +209,68 @@ de reabrir el ciclo SDD):
    adentro, sin tocar el JS de nuevo. Sin JS, el botón no hace nada (mismo
    nivel de degradación aceptable que ya tenía el cierre por click-afuera).
 
+### Fase 5 — Checkout por WhatsApp ✅ cerrada
+
+Un solo router nuevo (`src/routes/checkout.js`) con `GET/POST /checkout` +
+`GET /pedido/:token`, montado en `app.js` entre `cartRouter` y
+`publicRouter` (mismo bug class que `/carrito` en Fase 4: el comodín
+`/:parentSlug` de `public.js` lo hubiera capturado si se montaba después).
+Servicio puro nuevo `src/services/orders.js` (`buildWhatsappMessage`,
+`buildShortMessage`, `buildWaLink`) sin acceso a DB ni a `req`, hecho con
+TDD estricto (RED-first, 11 tests) — arma el mensaje de §5.8 con truncado a
+encabezado+total+link cuando el pedido supera 15 items o el mensaje
+codificado (`encodeURIComponent`, nunca el raw) supera 1500 caracteres.
+`ordersModel.findByToken` agregado (2 queries parametrizadas, sin JOIN)
+para la lectura pública.
+
+**Regla más estricta que design.md, confirmada por spec**: la revalidación
+de stock en el POST bloquea el checkout ENTERO (sin crear `orders`/
+`order_items`) si ajustó o quitó CUALQUIER línea — no solo cuando el
+carrito queda vacío. El diseño original solo contemplaba el caso vacío;
+`tasks.md` lo corrigió antes de `apply` a favor del spec.
+
+**Deviation deliberada de §5.8 paso 4** (documentada desde `proposal`):
+nunca hay redirect automático del servidor a `wa.me`. La clienta siempre
+aterriza primero en una página de confirmación propia
+(`checkout-confirm.ejs`) con el link `wa.me` clickeable y el aviso
+explícito de que hay que tocar "Enviar" en WhatsApp — mismo resultado que
+el flujo de prompt.md, pero sin arriesgar que ese aviso se pierda detrás de
+un salto automático de pestaña.
+
+Snapshot anti-tampering igual que Fase 4: `product_name_snapshot`/`size`/
+`color`/`unit_price`/`quantity` de `order_items` salen siempre de
+`cart.summarize()` sobre filas vivas (`variantsModel.findByIds`), nunca del
+body del POST — el body solo aporta `nombre`/`nota`/`_csrf`, ambos
+opcionales. `whatsapp_sent_at` queda `NULL` a propósito (no hay señal
+confiable de que la clienta apretó enviar; Fase 6 trata `NULL` como
+"pendiente de contacto", no como "no es un pedido real").
+
+`noindex` nuevo en `layouts/main.ejs`, mismo patrón opcional que
+`metaDescription`, usado por `/pedido/:token` y la confirmación de
+checkout. CTA "Finalizar pedido" conectado en `cart.ejs` y
+`cart-drawer.ejs`. 83/83 tests (`node --test`, +21 sobre Fase 4), corridos
+contra Postgres real. Tamaño de PR con excepción aceptada
+(`size:exception`, ~872 líneas) — mismo criterio que Fase 4.
+
+El `SITE_URL` que arma el link de `/pedido/{token}` en el mensaje de
+WhatsApp sale de `config.SITE_URL` (`.env`), nunca hardcodeado — en
+desarrollo apunta a `localhost`, en producción solo hay que cambiar esa
+variable.
+
+**Flake real encontrado en QA post-`apply`, corregido**: el helper
+`addToCart` de `test/routes/checkout.test.js` no drenaba el body de la
+respuesta (`await res.json()`) antes de disparar el siguiente POST a la
+misma sesión — a diferencia de todos los helpers ya probados en
+`cart.test.js`. Sin drenar, dos POSTs seguidos podían pisarse por reuso de
+conexión keep-alive de `fetch`, perdiendo la primera línea agregada al
+carrito ~30-50% de las veces. Corregido; confirmado con 5 corridas
+completas seguidas en verde.
+
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #349-#355.
+
 ## Fases sin empezar
 
-5. **Checkout por WhatsApp** — persistencia del pedido, generación del
-   mensaje, redirección, página pública `/pedido/{token}`. `nanoid` ya está
-   instalado (se agregó en Fase 2, sin uso real todavía).
 6. **Panel de administración** — auth, CRUD, generación de variantes,
    `sharp` para imágenes (ninguna dependencia de imágenes real instalada
    todavía, ni `multer` ni `sharp`), stock, pedidos, carrusel, config

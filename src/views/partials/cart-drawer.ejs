@@ -71,7 +71,12 @@
           <span>Subtotal</span>
           <span data-cart-subtotal></span>
         </div>
-        <a href="/carrito" class="block w-full rounded px-3 py-2 text-center text-sm font-semibold text-text" style="background: var(--brand-gradient);">Ver carrito</a>
+        <div class="flex flex-col gap-2">
+          <a href="/carrito" class="block w-full rounded border border-border px-3 py-2 text-center text-sm font-semibold text-text">Ver carrito</a>
+          <%# Fase 5 (§5.8): mismo contenedor data-cart-footer, cart.js solo
+              togglea `hidden` acá adentro, no re-renderiza estos links. %>
+          <a href="/checkout" class="block w-full rounded px-3 py-2 text-center text-sm font-semibold text-text" style="background: var(--brand-gradient);">Finalizar pedido</a>
+        </div>
       </div>
     </aside>
   </div>

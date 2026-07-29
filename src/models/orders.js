@@ -39,4 +39,21 @@ async function createWithItems({ publicToken, customerName = null, customerNote 
   }
 }
 
-module.exports = { createWithItems };
+// Fase 5 (design.md): lectura pública por token — nunca por id (§3.1, evita
+// enumeración). Dos queries parametrizadas en vez de un JOIN: `orders` es
+// 1 fila y `order_items` son N, un JOIN duplicaría los campos del pedido
+// por cada item sin necesidad.
+async function findByToken(publicToken) {
+  const { rows: orderRows } = await pool.query('SELECT * FROM orders WHERE public_token = $1', [publicToken]);
+  const order = orderRows[0];
+  if (!order) return null;
+
+  const { rows: items } = await pool.query(
+    'SELECT * FROM order_items WHERE order_id = $1 ORDER BY id',
+    [order.id]
+  );
+
+  return { ...order, items };
+}
+
+module.exports = { createWithItems, findByToken };

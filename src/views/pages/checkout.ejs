@@ -1,0 +1,65 @@
+<%# ------------------------------------------------------------------
+  Formulario de checkout (§5.8). Solo dos campos, ambos opcionales: nombre
+  y nota — sin dirección (logística se negocia por WhatsApp). `summary` ya
+  viene revalidado contra stock vivo desde checkout.js (route), igual que
+  cart.ejs. Sin `data-cart-form`/`data-add-form`: este form NO se
+  intercepta por cart.js (§8.1 — necesitamos la navegación completa para
+  llegar a la página de confirmación, no una respuesta JSON).
+------------------------------------------------------------------ %>
+<section class="mx-auto max-w-[720px] px-4 py-8">
+  <h1 class="mb-6 text-2xl font-semibold">Finalizar pedido</h1>
+
+  <div aria-live="polite" class="mb-4 flex flex-col gap-2 empty:hidden">
+    <% (notices || []).forEach(function (notice) { %>
+      <p class="rounded border border-border-strong bg-bg px-3 py-2 text-sm text-error">
+        <% if (notice.kind === 'removed') { %>
+          <%= notice.name || 'Un producto' %> se agotó y fue quitado del carrito.
+        <% } else { %>
+          <%= notice.name || 'Un producto' %>: la cantidad se ajustó a <%= notice.to %> por stock disponible.
+        <% } %>
+      </p>
+    <% }) %>
+  </div>
+
+  <ul class="mb-6 flex flex-col divide-y divide-border border-y border-border">
+    <% summary.lines.forEach(function (line) { %>
+      <li class="flex items-center justify-between gap-4 py-3">
+        <div class="flex flex-col gap-0.5">
+          <p class="font-medium"><%= line.name %></p>
+          <% if (line.size || line.color) { %>
+            <p class="text-sm text-textMuted"><%= [line.size, line.color].filter(Boolean).join(' / ') %></p>
+          <% } %>
+          <p class="text-sm text-textMuted"><%= line.quantity %> x <%= formatPrice(line.price) %></p>
+        </div>
+        <span class="shrink-0 font-semibold"><%= formatPrice(line.lineTotal) %></span>
+      </li>
+    <% }) %>
+  </ul>
+
+  <div class="mb-6 flex items-baseline justify-end gap-3 text-lg font-semibold">
+    <span>Total</span>
+    <span><%= formatPrice(summary.subtotal) %></span>
+  </div>
+
+  <form action="/checkout" method="post" class="flex flex-col gap-4" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <div class="flex flex-col gap-1">
+      <label for="nombre" class="text-sm font-medium">Nombre <span class="text-textMuted">(opcional)</span></label>
+      <input type="text" id="nombre" name="nombre" maxlength="200" class="rounded border border-border px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label for="nota" class="text-sm font-medium">Nota para la dueña <span class="text-textMuted">(opcional)</span></label>
+      <textarea id="nota" name="nota" maxlength="500" rows="3" class="rounded border border-border px-3 py-2 text-sm"></textarea>
+    </div>
+
+    <p class="text-sm text-textMuted">
+      Al confirmar vas a ver un link a WhatsApp con el mensaje ya armado. Vas a tener que tocar enviar vos misma para que el pedido nos llegue.
+    </p>
+
+    <button type="submit" class="rounded px-4 py-3 text-sm font-semibold text-text" style="background: var(--brand-gradient);">
+      Confirmar pedido
+    </button>
+  </form>
+</section>

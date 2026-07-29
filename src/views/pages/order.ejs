@@ -1,0 +1,38 @@
+<%# ------------------------------------------------------------------
+  Página pública de pedido (§5.9), accesible por token sin login. `order`
+  viene de ordersModel.findByToken: fila de `orders` + `items` (filas de
+  `order_items`, snapshot — sobreviven aunque el producto/variante origen
+  se borre o cambie, spec "Snapshot independence"). noindex se pasa desde
+  la ruta (design.md D6).
+------------------------------------------------------------------ %>
+<section class="mx-auto max-w-[720px] px-4 py-8">
+  <h1 class="mb-1 text-2xl font-semibold">Pedido <%= order.order_code %></h1>
+  <p class="mb-6 text-sm text-textMuted">
+    <%= formatDate(order.created_at) %> · Estado:
+    <span class="font-medium text-text"><%= order.status %></span>
+  </p>
+
+  <% if (order.customer_name) { %>
+    <p class="mb-4 text-sm"><span class="text-textMuted">A nombre de:</span> <%= order.customer_name %></p>
+  <% } %>
+
+  <ul class="mb-6 flex flex-col divide-y divide-border border-y border-border">
+    <% order.items.forEach(function (item) { %>
+      <li class="flex items-center justify-between gap-4 py-3">
+        <div class="flex flex-col gap-0.5">
+          <p class="font-medium"><%= item.product_name_snapshot %></p>
+          <% if (item.size || item.color) { %>
+            <p class="text-sm text-textMuted"><%= [item.size, item.color].filter(Boolean).join(' / ') %></p>
+          <% } %>
+          <p class="text-sm text-textMuted"><%= item.quantity %> x <%= formatPrice(Number(item.unit_price)) %></p>
+        </div>
+        <span class="shrink-0 font-semibold"><%= formatPrice(Number(item.unit_price) * item.quantity) %></span>
+      </li>
+    <% }) %>
+  </ul>
+
+  <div class="flex items-baseline justify-end gap-3 text-lg font-semibold">
+    <span>Total</span>
+    <span><%= formatPrice(Number(order.subtotal)) %></span>
+  </div>
+</section>

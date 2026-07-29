@@ -15,6 +15,12 @@
   <% if (typeof metaDescription !== 'undefined' && metaDescription) { %>
   <meta name="description" content="<%= metaDescription %>">
   <% } %>
+  <%# Fase 5 (design.md D6): mismo patrón opcional que metaDescription — el
+      pedido público (`/pedido/:token`) y la confirmación de checkout pasan
+      `noindex: true` para que el buscador no indexe URLs con token. %>
+  <% if (typeof noindex !== 'undefined' && noindex) { %>
+  <meta name="robots" content="noindex">
+  <% } %>
   <link rel="icon" href="/img/logo-cuadrado.png">
   <link rel="stylesheet" href="/css/output.css">
   <%# Fase 4: token CSRF disponible para cart.js/variant-selector.js sin

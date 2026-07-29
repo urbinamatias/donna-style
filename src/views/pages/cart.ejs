@@ -66,8 +66,16 @@
     <% }) %>
   </ul>
 
-  <div data-cart-footer class="flex items-baseline justify-end gap-3 text-lg font-semibold <%= summary.lines.length === 0 ? 'hidden' : '' %>">
-    <span>Subtotal</span>
-    <span data-cart-subtotal><%= formatPrice(summary.subtotal) %></span>
+  <div data-cart-footer class="flex flex-col items-end gap-3 <%= summary.lines.length === 0 ? 'hidden' : '' %>">
+    <div class="flex items-baseline justify-end gap-3 text-lg font-semibold">
+      <span>Subtotal</span>
+      <span data-cart-subtotal><%= formatPrice(summary.subtotal) %></span>
+    </div>
+    <%# Fase 5 (§5.8): oculto cuando el carrito está vacío, mismo criterio
+        que el resto de data-cart-footer — cart.js no re-renderiza este CTA
+        dinámicamente, solo togglea `hidden` en el contenedor completo. %>
+    <a href="/checkout" class="w-full rounded px-4 py-3 text-center text-sm font-semibold text-text sm:w-auto" style="background: var(--brand-gradient);">
+      Finalizar pedido
+    </a>
   </div>
 </section>

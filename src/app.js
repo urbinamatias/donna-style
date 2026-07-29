@@ -4,6 +4,7 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const healthRouter = require('./routes/health');
 const cartRouter = require('./routes/cart');
+const checkoutRouter = require('./routes/checkout');
 const publicRouter = require('./routes/public');
 const categoriesModel = require('./models/categories');
 const siteSettingsModel = require('./models/site-settings');
@@ -87,9 +88,12 @@ app.use(async (req, res, next) => {
 });
 
 app.use(healthRouter);
-// Antes de publicRouter (design.md D7): public.js termina en el comodín
-// `/:parentSlug`, que de otro modo capturaría `/carrito`.
+// Antes de publicRouter (design.md D2/D7, Fase 5 tasks.md 3.8): public.js
+// termina en el comodín `/:parentSlug`, que de otro modo capturaría
+// `/carrito`, `/checkout` y `/pedido/:token` como si fueran slugs de
+// categoría de primer nivel.
 app.use(cartRouter);
+app.use(checkoutRouter);
 app.use(publicRouter);
 
 // Manejador de errores genérico: nunca deja escapar un stack trace a la
