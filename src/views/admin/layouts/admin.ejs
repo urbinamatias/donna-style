@@ -1,0 +1,43 @@
+<%# ------------------------------------------------------------------
+  Layout del panel admin (Fase 6a, design.md D10). Deliberadamente NO
+  reusa layouts/main.ejs: ese layout hard-incluye header/footer/carrito
+  de la tienda y depende de locals (menuTree, announcementItems,
+  cartCount) que el panel nunca debe cargar ni filtrar. Mobile-first a
+  360px (§6.1: la dueña carga desde el celular, parada en el local).
+------------------------------------------------------------------ %>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/img/logo-cuadrado.png">
+  <link rel="stylesheet" href="/css/output.css">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body class="bg-bg text-text text-base min-h-screen flex flex-col">
+  <% if (typeof adminAuthenticated !== 'undefined' && adminAuthenticated) { %>
+  <header class="sticky top-0 z-10 flex items-center justify-between border-b-2 border-borderStrong bg-surface px-4 py-4">
+    <a href="/admin" class="font-brand text-xl">Panel Donna Style</a>
+    <form method="POST" action="/admin/logout">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="text-base text-textMuted underline">Salir</button>
+    </form>
+  </header>
+  <nav class="flex gap-6 overflow-x-auto border-b-2 border-borderStrong bg-surface px-4 py-3 text-base font-medium">
+    <a href="/admin" class="whitespace-nowrap hover:text-brandInk">Dashboard</a>
+    <a href="/admin/categorias" class="whitespace-nowrap hover:text-brandInk">Categorías</a>
+    <a href="/admin/productos" class="whitespace-nowrap hover:text-brandInk">Productos</a>
+  </nav>
+  <% } %>
+  <main id="main-content" class="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+    <%- include(view, locals) %>
+  </main>
+  <% if (typeof bodyScripts !== 'undefined') { %>
+    <% bodyScripts.forEach(function (src) { %>
+      <script src="<%= src %>" defer></script>
+    <% }) %>
+  <% } %>
+</body>
+</html>

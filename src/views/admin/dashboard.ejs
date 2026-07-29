@@ -1,0 +1,20 @@
+<%# Dashboard (§6.3): solo esqueleto y navegación en 6a — pedidos pendientes
+  y stock bajo quedan para 6c, cuando exista el flujo de pedidos en el panel
+  (proposal "Out of Scope"). %>
+<div class="flex flex-col gap-6">
+  <h1 class="font-brand text-3xl">Dashboard</h1>
+
+  <div class="rounded-lg border-2 border-border bg-surface p-4">
+    <p class="text-base text-textMuted">Productos activos</p>
+    <p class="text-3xl font-semibold"><%= activeCount %></p>
+  </div>
+
+  <div class="flex flex-col gap-3">
+    <a href="/admin/categorias" class="rounded-lg border-2 border-border bg-surface p-4 text-lg font-medium hover:border-borderStrong">Gestionar categorías</a>
+    <a href="/admin/productos" class="rounded-lg border-2 border-border bg-surface p-4 text-lg font-medium hover:border-borderStrong">Gestionar productos</a>
+  </div>
+
+  <p class="text-base text-textMuted">
+    Pedidos y stock masivo todavía no están disponibles en este panel — llegan en la próxima etapa.
+  </p>
+</div>

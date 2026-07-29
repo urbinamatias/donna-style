@@ -65,4 +65,45 @@ async function findByIds(ids) {
   return rows.map((row) => ({ ...row, id: Number(row.id), product_id: Number(row.product_id) }));
 }
 
-module.exports = { bulkCreate, findByProductId, findByIds };
+// Reemplaza TODAS las variantes de un producto en una sola operación
+// (Fase 6a, design.md "variants.replaceForProduct", tx-aware vía `client`).
+// Confía en el `sizeOrder` que trae cada fila — NUNCA lo recalcula acá: quien
+// decide el valor final de `size_order` es siempre variant-grid.js (cliente,
+// de más chico a más grande, sin reorder manual — el drag se sacó por QA) o
+// sizes.js si en algún momento se genera server-side.
+async function replaceForProduct(productId, variants, client = db) {
+  await client.query('DELETE FROM variants WHERE product_id = $1', [productId]);
+  if (!variants || variants.length === 0) return [];
+
+  const values = [];
+  const placeholders = variants
+    .map((v, i) => {
+      const base = i * 8;
+      values.push(
+        productId,
+        v.size ?? null,
+        v.sizeOrder ?? 0,
+        v.color ?? null,
+        v.colorHex ?? null,
+        v.sku ?? null,
+        v.stock ?? 0,
+        v.priceOverride ?? null
+      );
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
+    })
+    .join(', ');
+  const { rows } = await client.query(
+    `INSERT INTO variants
+       (product_id, size, size_order, color, color_hex, sku, stock, price_override)
+     VALUES ${placeholders}
+     RETURNING *`,
+    values
+  );
+  return rows;
+}
+
+async function removeById(id, client = db) {
+  await client.query('DELETE FROM variants WHERE id = $1', [id]);
+}
+
+module.exports = { bulkCreate, findByProductId, findByIds, replaceForProduct, removeById };

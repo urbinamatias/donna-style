@@ -5,6 +5,7 @@ const pgSession = require('connect-pg-simple')(session);
 const healthRouter = require('./routes/health');
 const cartRouter = require('./routes/cart');
 const checkoutRouter = require('./routes/checkout');
+const adminRouter = require('./routes/admin');
 const publicRouter = require('./routes/public');
 const categoriesModel = require('./models/categories');
 const siteSettingsModel = require('./models/site-settings');
@@ -88,12 +89,16 @@ app.use(async (req, res, next) => {
 });
 
 app.use(healthRouter);
-// Antes de publicRouter (design.md D2/D7, Fase 5 tasks.md 3.8): public.js
-// termina en el comodín `/:parentSlug`, que de otro modo capturaría
-// `/carrito`, `/checkout` y `/pedido/:token` como si fueran slugs de
-// categoría de primer nivel.
+// Antes de publicRouter (design.md D2/D7, Fase 5 tasks.md 3.8, Fase 6a
+// design.md admin-routing): public.js termina en el comodín
+// `/:parentSlug`, que de otro modo capturaría `/carrito`, `/checkout`,
+// `/pedido/:token` y `/admin*` como si fueran slugs de categoría de primer
+// nivel. `adminRouter` va acá, no después de `publicRouter` — mismo bug
+// class, misma regla, cubierto por una regresión automatizada
+// (test/routes/admin-routing.test.js).
 app.use(cartRouter);
 app.use(checkoutRouter);
+app.use(adminRouter);
 app.use(publicRouter);
 
 // Manejador de errores genérico: nunca deja escapar un stack trace a la

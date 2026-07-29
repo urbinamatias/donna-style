@@ -1,0 +1,44 @@
+<%# Listado de productos (spec admin-products "Product listing and
+  editing" + "Filter list"). Incluye inactivos/borradores — es el panel,
+  no el catálogo público. %>
+<div class="flex flex-col gap-6">
+  <div class="flex items-center justify-between">
+    <h1 class="font-brand text-3xl">Productos</h1>
+    <a href="/admin/productos/nuevo" class="rounded-lg bg-brand px-4 py-2 text-base font-semibold text-white">+ Nuevo</a>
+  </div>
+
+  <form method="GET" action="/admin/productos" class="flex flex-wrap items-center gap-3 rounded-lg border-2 border-border bg-surface p-3 text-base">
+    <select name="estado" class="rounded border border-border px-2 py-1.5 text-base">
+      <option value="" <%= filters.estado === '' ? 'selected' : '' %>>Todos los estados</option>
+      <option value="activos" <%= filters.estado === 'activos' ? 'selected' : '' %>>Activos</option>
+      <option value="inactivos" <%= filters.estado === 'inactivos' ? 'selected' : '' %>>Inactivos / borrador</option>
+    </select>
+    <select name="categoria_id" class="rounded border border-border px-2 py-1.5 text-base">
+      <option value="">Todas las categorías</option>
+      <% categories.forEach(function (c) { %>
+        <option value="<%= c.id %>" <%= String(filters.categoria_id) === String(c.id) ? 'selected' : '' %>><%= c.name %></option>
+      <% }) %>
+    </select>
+    <button type="submit" class="rounded-lg border-2 border-borderStrong px-4 py-1.5 text-base font-medium">Filtrar</button>
+  </form>
+
+  <ul class="flex flex-col gap-3">
+    <% products.forEach(function (product) { %>
+      <li class="flex items-center justify-between rounded-lg border-2 border-border bg-surface p-4">
+        <div>
+          <p class="text-lg font-medium">
+            <%= product.name %>
+            <% if (!product.is_active) { %>
+              <span class="ml-1 rounded bg-bg px-2 py-0.5 text-sm text-textMuted">Borrador — falta imagen</span>
+            <% } %>
+          </p>
+          <p class="text-sm text-textMuted">$<%= product.base_price %></p>
+        </div>
+        <a href="/admin/productos/<%= product.id %>/editar" class="text-base underline">Editar</a>
+      </li>
+    <% }) %>
+    <% if (products.length === 0) { %>
+      <li class="text-base text-textMuted">No hay productos con ese filtro.</li>
+    <% } %>
+  </ul>
+</div>

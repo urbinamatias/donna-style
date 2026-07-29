@@ -72,4 +72,64 @@ async function findMenuTree() {
   return tree;
 }
 
-module.exports = { create, findBySlug, findAll, findChildren, findDescendantIds, findMenuTree };
+async function findById(id) {
+  const { rows } = await db.query('SELECT * FROM categories WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+// Update parcial (Fase 6a, tasks.md 2.1): solo escribe las columnas que
+// vienen definidas, para que el form de edición pueda mandar solo lo que
+// cambió. El trigger `trg_categories_max_depth` (002) sigue siendo la única
+// fuente de verdad del límite de 2 niveles — acá no se duplica esa regla,
+// el error de Postgres se deja subir para que la ruta lo mapee a un mensaje
+// legible (design.md D8).
+async function update(id, patch = {}) {
+  const { name, slug, sortOrder } = patch;
+  // `parentId` necesita distinguir "no vino en el patch" (no tocar) de
+  // "vino explícitamente en null" (re-parentar a raíz) — por eso se chequea
+  // con hasOwnProperty en vez de un simple `??`, que no podría diferenciar
+  // ambos casos.
+  const touchesParent = Object.prototype.hasOwnProperty.call(patch, 'parentId');
+  const parentId = touchesParent ? patch.parentId : null;
+
+  const { rows } = await db.query(
+    `UPDATE categories SET
+       name = COALESCE($2, name),
+       slug = COALESCE($3, slug),
+       parent_id = CASE WHEN $4 THEN $5::bigint ELSE parent_id END,
+       sort_order = COALESCE($6, sort_order)
+     WHERE id = $1
+     RETURNING *`,
+    [id, name ?? null, slug ?? null, touchesParent, parentId, sortOrder ?? null]
+  );
+  return rows[0] || null;
+}
+
+// hasProducts (Fase 6a, tasks.md reconciliación con design.md D7/D8 —
+// "block-with-count", mismo patrón que products.hasOrders): nunca se borra
+// una categoría en uso, porque `product_categories` cascadea y podría dejar
+// un producto sin ninguna categoría (viola §3.3, mínimo 1 categoría).
+async function hasProducts(id) {
+  const { rows } = await db.query(
+    'SELECT EXISTS (SELECT 1 FROM product_categories WHERE category_id = $1) AS exists',
+    [id]
+  );
+  return rows[0].exists;
+}
+
+async function remove(id) {
+  await db.query('DELETE FROM categories WHERE id = $1', [id]);
+}
+
+module.exports = {
+  create,
+  findBySlug,
+  findById,
+  findAll,
+  findChildren,
+  findDescendantIds,
+  findMenuTree,
+  update,
+  hasProducts,
+  remove,
+};

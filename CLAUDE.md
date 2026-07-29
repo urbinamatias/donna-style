@@ -16,6 +16,9 @@ Convenciones del proyecto para mantener consistencia entre sesiones. La fuente d
 | Migraciones | Archivos `.sql` numerados en `/db/migrations` + `node db/migrate.js` (runner propio, sin librería de migraciones) |
 | Imágenes | `multer` + `sharp` (a partir de la fase que las necesite) |
 | Sesiones | `express-session` + `connect-pg-simple` (a partir de la fase que las necesite) |
+| Contraseñas admin | `bcryptjs` (puro JS, sin binario nativo — ver nota abajo) |
+
+**`bcryptjs` en vez de `bcrypt` nativo (Fase 6a):** mismo motivo que `sharp` obliga a correr `npm install` desde Windows — un binario nativo compilado en un entorno rompe en el otro. `bcryptjs` es una reimplementación en JS puro del mismo algoritmo, sin paso de compilación, así que no tiene ese problema. Costo de hash: 12+ rounds (§6.2 de `prompt.md`).
 
 ## 2. Convenciones del proyecto
 

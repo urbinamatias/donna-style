@@ -13,9 +13,11 @@
     "seed": "node db/seed.js",
     "build:css": "tailwindcss -i src/public/css/input.css -o src/public/css/output.css --minify",
     "watch:css": "tailwindcss -i src/public/css/input.css -o src/public/css/output.css --watch",
-    "test": "node --test"
+    "test": "node --test",
+    "create-admin": "node db/scripts/create-admin.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "connect-pg-simple": "^9.0.1",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",

@@ -156,12 +156,168 @@ async function findRelated(productId, categoryIds, limit = 4) {
   return rows;
 }
 
+async function findById(id) {
+  const { rows } = await db.query('SELECT * FROM products WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+// Ficha admin: sin el filtro `is_active = true` de findBySlugWithDetails —
+// la dueña tiene que poder abrir y editar sus propios borradores (D9).
+async function findByIdWithDetails(id) {
+  const product = await findById(id);
+  if (!product) return null;
+
+  const [images, variants, categories] = await Promise.all([
+    productImagesModel.findByProductId(product.id),
+    variantsModel.findByProductId(product.id),
+    findCategoriesForProduct(product.id),
+  ]);
+
+  return { ...product, images, variants, categories };
+}
+
+// Listado admin (Fase 6a, spec "Product listing and editing" + "Filter
+// list"): a diferencia de findByCategory, incluye inactivos — es el panel,
+// no el catálogo público.
+async function findAllForAdmin({ isActive = null, categoryIds = null, page = 1, perPage = 50 } = {}) {
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const offset = (safePage - 1) * perPage;
+
+  const { rows } = await db.query(
+    `SELECT p.*, COUNT(*) OVER() AS full_count
+     FROM products p
+     WHERE ($1::boolean IS NULL OR p.is_active = $1)
+       AND ($2::bigint[] IS NULL OR EXISTS (
+         SELECT 1 FROM product_categories pc
+         WHERE pc.product_id = p.id AND pc.category_id = ANY($2::bigint[])
+       ))
+     ORDER BY p.created_at DESC
+     LIMIT $3 OFFSET $4`,
+    [isActive, categoryIds, perPage, offset]
+  );
+
+  const total = rows.length > 0 ? Number(rows[0].full_count) : 0;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  return { rows: rows.map(stripFullCount), total, totalPages };
+}
+
+// Update parcial (Fase 6a, tasks.md 3.4). El `slug` SOLO cambia si viene
+// explícito en el patch — nunca se re-deriva del `name` acá (decisión
+// confirmada esta sesión: renombrar un producto no debe romper un link de
+// WhatsApp/redes ya compartido). Campos opcionales nullable (description,
+// sizeGuide, compareAtPrice) usan hasOwnProperty para distinguir "no vino en
+// el patch" de "vino explícitamente en null" (vaciar el campo), igual que
+// categories.update con parentId.
+async function update(id, patch = {}, client = db) {
+  const { name, slug, basePrice, isFeatured, isActive, freeShipping } = patch;
+
+  // D9: activar un producto sin imágenes se rechaza acá, no en la ruta —
+  // así ningún caller (form, script, futuro bulk-edit) puede saltarse la
+  // invariante de §3.3.
+  if (isActive === true) {
+    const { rows: imgRows } = await client.query(
+      'SELECT count(*)::int AS n FROM product_images WHERE product_id = $1',
+      [id]
+    );
+    if (Number(imgRows[0].n) === 0) {
+      const err = new Error('No se puede activar un producto sin al menos una imagen.');
+      err.code = 'NO_IMAGES';
+      throw err;
+    }
+  }
+
+  const touches = (key) => Object.prototype.hasOwnProperty.call(patch, key);
+  const description = touches('description') ? patch.description : undefined;
+  const sizeGuide = touches('sizeGuide') ? patch.sizeGuide : undefined;
+  const compareAtPrice = touches('compareAtPrice') ? patch.compareAtPrice : undefined;
+
+  const { rows } = await client.query(
+    `UPDATE products SET
+       name = COALESCE($2, name),
+       slug = COALESCE($3, slug),
+       description = CASE WHEN $4 THEN $5 ELSE description END,
+       size_guide = CASE WHEN $6 THEN $7 ELSE size_guide END,
+       base_price = COALESCE($8, base_price),
+       compare_at_price = CASE WHEN $9 THEN $10 ELSE compare_at_price END,
+       is_featured = COALESCE($11, is_featured),
+       is_active = COALESCE($12, is_active),
+       free_shipping = COALESCE($13, free_shipping)
+     WHERE id = $1
+     RETURNING *`,
+    [
+      id,
+      name ?? null,
+      slug ?? null,
+      description !== undefined,
+      description ?? null,
+      sizeGuide !== undefined,
+      sizeGuide ?? null,
+      basePrice ?? null,
+      compareAtPrice !== undefined,
+      compareAtPrice ?? null,
+      isFeatured ?? null,
+      isActive ?? null,
+      freeShipping ?? null,
+    ]
+  );
+  return rows[0] || null;
+}
+
+// D7: chequeo de aplicación, NUNCA se reemplaza por la FK — `order_items
+// .variant_id` es `ON DELETE SET NULL` (004_orders.sql), no RESTRICT, así
+// que Postgres solo no alcanza para bloquear el delete. Nota documentada en
+// el propio design: una vez que una variante se borra, su vínculo a
+// order_items también se pierde (SET NULL), así que este check puede volver
+// `false` para un producto que alguna vez tuvo pedidos si sus variantes ya
+// no existen — comportamiento esperado, no un bug.
+async function hasOrders(productId) {
+  const { rows } = await db.query(
+    `SELECT EXISTS (
+       SELECT 1 FROM order_items oi
+       JOIN variants v ON v.id = oi.variant_id
+       WHERE v.product_id = $1
+     ) AS exists`,
+    [productId]
+  );
+  return rows[0].exists;
+}
+
+async function remove(id, client = db) {
+  await client.query('DELETE FROM products WHERE id = $1', [id]);
+}
+
+// Reemplaza la asignación N:N completa (Fase 6a, form de edición: siempre
+// manda el set final de categorías, nunca un delta).
+async function setCategories(productId, categoryIds, client = db) {
+  await client.query('DELETE FROM product_categories WHERE product_id = $1', [productId]);
+  if (!categoryIds || categoryIds.length === 0) return;
+
+  const values = [];
+  const placeholders = categoryIds
+    .map((categoryId, i) => {
+      values.push(productId, categoryId);
+      return `($${i * 2 + 1}, $${i * 2 + 2})`;
+    })
+    .join(', ');
+  await client.query(
+    `INSERT INTO product_categories (product_id, category_id) VALUES ${placeholders}`,
+    values
+  );
+}
+
 module.exports = {
   create,
   findBySlug,
+  findById,
+  findByIdWithDetails,
+  findAllForAdmin,
   addToCategories,
+  setCategories,
   findByCategory,
   findBySlugWithDetails,
   findFeatured,
   findRelated,
+  update,
+  remove,
+  hasOrders,
 };

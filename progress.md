@@ -269,12 +269,92 @@ completas seguidas en verde.
 Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
 archive, Engram #349-#355.
 
+### Fase 6a — Admin: autenticación + CRUD de productos/categorías ✅ cerrada
+
+**La Fase 6 original se dividió en sub-fases** (decisión de esta sesión,
+dado el tamaño): 6a (esta, auth + productos/categorías) → 6b (imágenes,
+`sharp`/`multer`) → 6c (stock + pedidos) → 6d (carrusel + configuración).
+Cada una con su propio ciclo SDD completo.
+
+Auth con `bcryptjs` (NO el `bcrypt` nativo — mismo motivo que obliga a
+correr `npm install` desde Windows para `sharp`: un binario compilado en
+un entorno rompe en el otro), cookie de sesión reutilizando la infra de
+Fase 4, rate limiting de login **por IP** (no global, para que nadie pueda
+bloquear a la única cuenta admin mandándole intentos fallidos a
+propósito), con barrido de expiración y tope de 10k claves en el mapa en
+memoria. Primer admin se crea con `node db/scripts/create-admin.js
+--email ... --password ...` (nunca un formulario público de registro —
+hay una sola cuenta).
+
+CRUD completo de categorías (reutiliza el trigger de profundidad máxima 2
+de Fase 2, nunca lo duplica en JS) y productos, con generación de
+variantes talle×color. `src/services/sizes.js` nuevo: deriva el orden
+canónico (XS→XXXL, numéricos ascendentes) — **no existía nada que
+reusar de `availability.js`** pese a la suposición inicial del explore;
+`availability.js` solo consume `size_order` ya calculado, nunca lo
+deriva.
+
+**Decisiones confirmadas esta sesión**:
+- Producto sin imágenes se guarda `is_active=false` (borrador) — no puede
+  activarse hasta tener al menos una foto real (eso llega en 6b).
+- Borrar un producto con pedidos asociados está BLOQUEADO a nivel
+  aplicación (`hasOrders()`) — la FK de `order_items.variant_id` es
+  `ON DELETE SET NULL`, no `RESTRICT`, así que sin este chequeo explícito
+  el borrado se permitiría en silencio.
+- Borrar una categoría con productos asignados también está bloqueado
+  (`hasProducts()`) — nunca deja productos por debajo del mínimo de 1
+  categoría (§3.3).
+- El slug del producto queda **congelado** al renombrar — cambiarlo
+  requiere tocar el campo a propósito, para no romper links de
+  WhatsApp/redes ya compartidos.
+
+**Bugs reales encontrados en QA manual post-`apply`, corregidos**:
+1. El filtro de categoría del listado admin exigía match exacto —
+   filtrar por una categoría padre (ej. "Abrigos") no traía los productos
+   de sus hijas ("Camperas y chaquetas"), a diferencia de "Ver todo en
+   Abrigos" del lado cliente. `findAllForAdmin` no tenía ningún test
+   (gap real del `apply` original). Corregido con el mismo patrón de
+   rollup que `public.js`, + 3 tests nuevos.
+2. **El drag-and-drop de talles se sacó por completo**, a pedido
+   explícito: no funcionaba en mobile y colgaba la página en desktop.
+   El orden de talles ahora es SIEMPRE automático (más chico a más
+   grande) — supera la decisión original de diseño ("el reorder manual
+   sobrevive a ediciones no relacionadas"), que queda obsoleta.
+3. Pasada de diseño visual completa en las 6 vistas del panel: texto más
+   grande, secciones con bordes marcados y encabezado propio, "Guardar" y
+   "Borrar producto" ahora del mismo tamaño (naranja vs. rojo con texto
+   blanco), mismo criterio en categorías y login.
+
+143/143 tests (`node --test`, +37 sobre Fase 5), corridos 2 veces
+seguidas contra Postgres real sin flakeo. Tamaño de PR con excepción
+aceptada (`size:exception`) — mismo criterio que Fases 4 y 5, pese a que
+el diseño ofrecía un split en 3 PRs encadenados.
+
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #358-#364.
+
 ## Fases sin empezar
 
-6. **Panel de administración** — auth, CRUD, generación de variantes,
-   `sharp` para imágenes (ninguna dependencia de imágenes real instalada
-   todavía, ni `multer` ni `sharp`), stock, pedidos, carrusel, config
-   (incluida la barra de anuncios, hoy hardcodeada en el seed).
+6b. **Panel: imágenes de producto** — `sharp` + `multer` (ninguna
+   instalada todavía), recorte 3:4, 3 anchos (400/800/1400px) en WebP
+   calidad 82, normalización de nivel, strip de EXIF, validaciones de
+   subida (lado corto ≥1000px, MIME real, tamaño, preview de recorte).
+   Storage en `/public/uploads`, gitignoreado, organizado por id de
+   producto. Es lo que finalmente permite activar los productos creados
+   como borrador en 6a.
+6c. **Panel: stock + pedidos** — tabla de stock editable/filtrable,
+   listado/detalle de pedidos, cambio de estado
+   (pendiente/confirmado/entregado/cancelado). Acá se decrementa stock
+   por primera vez (al pasar a "confirmado") y se repone (de "confirmado"
+   a "cancelado") — confirmado esta sesión: son las ÚNICAS dos
+   transiciones que mueven stock, el resto son solo de estado.
+6d. **Panel: carrusel + configuración** — CRUD de `carousel_slides`
+   (hoy solo por seed) con los mismos 3 estados (0/1/2+ imágenes) que ya
+   tiene el home. Migración de `WHATSAPP_ADMIN`/`INSTAGRAM`/
+   `EMAIL_CONTACTO`/`CUIT` de `.env` a `site_settings` (confirmado esta
+   sesión) — `.env` queda solo para secretos/infra
+   (`DATABASE_URL`/`SESSION_SECRET`/etc.), el panel pasa a ser la fuente
+   de verdad de esos datos de negocio.
 7. **Pulido** — SEO (JSON-LD, sitemap.xml, robots.txt, OG tags — nada de
    esto existe todavía), accesibilidad fina, performance, lightbox/zoom de
    la ficha, páginas de error visualmente pulidas (`404.ejs`/`500.ejs`

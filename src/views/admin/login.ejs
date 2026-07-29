@@ -1,0 +1,31 @@
+<%# Login del panel (spec admin-auth). Mensaje de error genérico: nunca
+  distingue "email inexistente" de "contraseña incorrecta" (spec "Unknown
+  email" / "Wrong password"). %>
+<div class="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center gap-6">
+  <h1 class="font-brand text-3xl">Ingresar</h1>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <p class="rounded border-2 border-error bg-white px-4 py-3 text-base text-error"><%= error %></p>
+  <% } %>
+
+  <form method="POST" action="/admin/login" class="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% if (typeof next !== 'undefined' && next) { %>
+      <input type="hidden" name="next" value="<%= next %>">
+    <% } %>
+
+    <label class="flex flex-col gap-1 text-base">
+      Email
+      <input type="email" name="email" required autocomplete="username"
+             class="rounded border border-border px-3 py-2 text-base">
+    </label>
+
+    <label class="flex flex-col gap-1 text-base">
+      Contraseña
+      <input type="password" name="password" required autocomplete="current-password"
+             class="rounded border border-border px-3 py-2 text-base">
+    </label>
+
+    <button type="submit" class="rounded-lg bg-brand px-5 py-3 text-base font-semibold text-white">Ingresar</button>
+  </form>
+</div>

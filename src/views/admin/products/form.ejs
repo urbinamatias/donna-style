@@ -1,0 +1,146 @@
+<%# Alta/edición de producto + generación de variantes (spec admin-products
+  / admin-variant-generation). Campos opcionales marcados explícitamente
+  (§3.3, §6.3) con la nota de que si quedan vacíos no se muestran en la
+  tienda (§4.5 principio de ausencia). %>
+<div class="flex flex-col gap-6">
+  <h1 class="font-brand text-3xl"><%= product && product.id ? 'Editar producto' : 'Nuevo producto' %></h1>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <p class="rounded border-2 border-error bg-white px-4 py-3 text-base text-error"><%= error %></p>
+  <% } %>
+
+  <% if (product && product.id && !product.is_active) { %>
+    <p class="rounded border-2 border-borderStrong bg-bg px-4 py-3 text-base text-textMuted">
+      Borrador — falta al menos una imagen para poder activarlo (la carga de fotos llega en la próxima etapa del panel).
+    </p>
+  <% } %>
+
+  <form method="POST"
+        action="<%= product && product.id ? '/admin/productos/' + product.id : '/admin/productos' %>"
+        class="flex flex-col gap-6" id="product-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <section class="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-4">
+      <h2 class="text-lg font-semibold border-b border-border pb-2">Datos generales</h2>
+
+      <label class="flex flex-col gap-1 text-base">
+        Nombre
+        <input type="text" name="name" required value="<%= product && product.name ? product.name : '' %>"
+               class="rounded border border-border px-3 py-2 text-base">
+      </label>
+
+      <label class="flex flex-col gap-1 text-base">
+        Slug
+        <span class="text-sm text-textMuted">
+          Opcional. Renombrar el producto NUNCA cambia el slug solo — tocá este campo a propósito si querés cambiar la URL.
+        </span>
+        <input type="text" name="slug" value="<%= product && product.slug ? product.slug : '' %>"
+               class="rounded border border-border px-3 py-2 text-base">
+      </label>
+
+      <label class="flex flex-col gap-1 text-base">
+        Descripción
+        <span class="text-sm text-textMuted">Opcional — si queda vacía, no se muestra en la ficha.</span>
+        <textarea name="description" rows="3" class="rounded border border-border px-3 py-2 text-base"><%= product && product.description ? product.description : '' %></textarea>
+      </label>
+
+      <label class="flex flex-col gap-1 text-base">
+        Guía de talles
+        <span class="text-sm text-textMuted">Opcional — si queda vacía, no se muestra en la ficha.</span>
+        <textarea name="size_guide" rows="2" class="rounded border border-border px-3 py-2 text-base"><%= product && product.size_guide ? product.size_guide : '' %></textarea>
+      </label>
+
+      <label class="flex flex-col gap-1 text-base">
+        Precio base
+        <input type="number" name="base_price" step="0.01" required
+               value="<%= product && product.base_price ? product.base_price : '' %>"
+               class="rounded border border-border px-3 py-2 text-base">
+      </label>
+
+      <label class="flex flex-col gap-1 text-base">
+        Precio comparativo (tachado)
+        <span class="text-sm text-textMuted">Opcional — si queda vacío, no se muestra el tachado.</span>
+        <input type="number" name="compare_at_price" step="0.01"
+               value="<%= product && product.compare_at_price ? product.compare_at_price : '' %>"
+               class="rounded border border-border px-3 py-2 text-base">
+      </label>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-lg border-2 border-border bg-surface p-4">
+      <h2 class="text-lg font-semibold border-b border-border pb-2">Categorías <span class="text-sm font-normal text-textMuted">(al menos una)</span></h2>
+      <fieldset class="flex flex-col gap-2 text-base">
+        <% var selectedCats = (product && product.categories ? product.categories : []).map(function (c) { return Number(c.id); }); %>
+        <% categories.forEach(function (c) { %>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="category_ids" value="<%= c.id %>"
+                   <%= selectedCats.indexOf(Number(c.id)) !== -1 ? 'checked' : '' %>>
+            <%= c.name %>
+          </label>
+        <% }) %>
+      </fieldset>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-lg border-2 border-border bg-surface p-4">
+      <h2 class="text-lg font-semibold border-b border-border pb-2">Visibilidad</h2>
+
+      <label class="flex items-center gap-2 text-base">
+        <input type="checkbox" name="is_featured" <%= product && product.is_featured ? 'checked' : '' %>>
+        Destacado <span class="text-sm text-textMuted">(opcional)</span>
+      </label>
+
+      <label class="flex items-center gap-2 text-base">
+        <input type="checkbox" name="free_shipping" <%= product && product.free_shipping ? 'checked' : '' %>>
+        Envío gratis <span class="text-sm text-textMuted">(opcional)</span>
+      </label>
+
+      <label class="flex items-center gap-2 text-base">
+        <input type="checkbox" name="is_active" <%= product && product.is_active ? 'checked' : '' %>>
+        Activo (visible en la tienda)
+        <span class="text-sm text-textMuted">— requiere al menos una imagen</span>
+      </label>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-lg border-2 border-border bg-surface p-4">
+      <h2 class="text-lg font-semibold border-b border-border pb-2">Variantes (talle × color)</h2>
+      <p class="text-sm text-textMuted">
+        Escribí los talles y colores separados por coma y generá la grilla. El orden de talles es automático, de más
+        chico a más grande.
+      </p>
+
+      <label class="flex flex-col gap-1 text-base">
+        Talles
+        <input type="text" id="sizes-input" placeholder="S, M, L" class="rounded border border-border px-3 py-2 text-base">
+      </label>
+      <label class="flex flex-col gap-1 text-base">
+        Colores
+        <input type="text" id="colors-input" placeholder="Negro, Blanco" class="rounded border border-border px-3 py-2 text-base">
+      </label>
+      <button type="button" id="generate-grid" class="w-fit rounded-lg border-2 border-borderStrong px-4 py-2 text-base font-medium">
+        Generar grilla
+      </button>
+
+      <div id="variant-grid" data-csrf="<%= csrfToken %>" class="flex flex-col gap-2"></div>
+
+      <script type="application/json" data-existing-variants><%- toScriptJson(product && product.variants ? product.variants : []) %></script>
+    </section>
+
+    <div class="flex flex-col gap-3 sm:flex-row">
+      <button type="submit" class="flex-1 rounded-lg bg-brand px-5 py-3 text-base font-semibold text-white">Guardar</button>
+      <% if (product && product.id) { %>
+        <button type="submit" form="delete-product-form" formnovalidate
+                class="flex-1 rounded-lg bg-error px-5 py-3 text-base font-semibold text-white">
+          Borrar producto
+        </button>
+      <% } %>
+    </div>
+  </form>
+
+  <% if (product && product.id) { %>
+    <form id="delete-product-form" method="POST" action="/admin/productos/<%= product.id %>/eliminar"
+          onsubmit="return confirm('¿Borrar este producto? Esta acción no se puede deshacer.');">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    </form>
+  <% } %>
+</div>
+
+<script src="/js/variant-grid.js" defer></script>

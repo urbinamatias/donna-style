@@ -1,0 +1,53 @@
+<%# Alta/edición de categoría (spec admin-categories). El límite de 2 niveles
+  lo aplica el trigger de la DB (design.md D8) — este form solo muestra el
+  error legible que la ruta ya mapeó, nunca lo revalida en JS. %>
+<div class="flex flex-col gap-6">
+  <h1 class="font-brand text-3xl"><%= category && category.id ? 'Editar categoría' : 'Nueva categoría' %></h1>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <p class="rounded border-2 border-error bg-white px-4 py-3 text-base text-error"><%= error %></p>
+  <% } %>
+
+  <form method="POST"
+        action="<%= category && category.id ? '/admin/categorias/' + category.id : '/admin/categorias' %>"
+        class="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label class="flex flex-col gap-1 text-base">
+      Nombre
+      <input type="text" name="name" required value="<%= category && category.name ? category.name : '' %>"
+             class="rounded border border-border px-3 py-2 text-base">
+    </label>
+
+    <label class="flex flex-col gap-1 text-base">
+      Slug
+      <span class="text-sm text-textMuted">Opcional — si lo dejás vacío se genera del nombre.</span>
+      <input type="text" name="slug" value="<%= category && category.slug ? category.slug : '' %>"
+             class="rounded border border-border px-3 py-2 text-base">
+    </label>
+
+    <label class="flex flex-col gap-1 text-base">
+      Categoría padre
+      <span class="text-sm text-textMuted">Opcional — dejar vacío para categoría de primer nivel.</span>
+      <select name="parent_id" class="rounded border border-border px-3 py-2 text-base">
+        <option value="">— Ninguna (primer nivel) —</option>
+        <% parents.forEach(function (parent) { %>
+          <% if (!parent.parent_id) { %>
+            <option value="<%= parent.id %>"
+              <%= category && Number(category.parent_id) === Number(parent.id) ? 'selected' : '' %>>
+              <%= parent.name %>
+            </option>
+          <% } %>
+        <% }) %>
+      </select>
+    </label>
+
+    <label class="flex flex-col gap-1 text-base">
+      Orden
+      <input type="number" name="sort_order" value="<%= category && category.sort_order != null ? category.sort_order : 0 %>"
+             class="rounded border border-border px-3 py-2 text-base">
+    </label>
+
+    <button type="submit" class="rounded-lg bg-brand px-5 py-3 text-base font-semibold text-white">Guardar</button>
+  </form>
+</div>
