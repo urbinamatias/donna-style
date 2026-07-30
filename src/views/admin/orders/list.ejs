@@ -1,0 +1,50 @@
+<%# Listado de pedidos (Fase 6c, spec admin-orders "Order list"). Newest
+  first (ya viene ordenado por ordersModel.findAllForAdmin). %>
+<div class="flex flex-col gap-6">
+  <h1 class="font-brand text-3xl">Pedidos</h1>
+
+  <form method="GET" action="/admin/pedidos" class="flex flex-wrap items-center gap-3 rounded-lg border-2 border-border bg-surface p-3 text-base">
+    <select name="estado" class="rounded border border-border px-2 py-1.5 text-base">
+      <option value="" <%= filters.estado === '' ? 'selected' : '' %>>Todos los estados</option>
+      <option value="pendiente" <%= filters.estado === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
+      <option value="confirmado" <%= filters.estado === 'confirmado' ? 'selected' : '' %>>Confirmado</option>
+      <option value="entregado" <%= filters.estado === 'entregado' ? 'selected' : '' %>>Entregado</option>
+      <option value="cancelado" <%= filters.estado === 'cancelado' ? 'selected' : '' %>>Cancelado</option>
+    </select>
+    <button type="submit" class="rounded-lg border-2 border-borderStrong px-4 py-1.5 text-base font-medium">Filtrar</button>
+  </form>
+
+  <% if (orders.length === 0) { %>
+    <p class="text-base text-textMuted">No hay pedidos con ese filtro.</p>
+  <% } else { %>
+    <div class="overflow-x-auto rounded-lg border-2 border-border">
+      <table class="w-full min-w-[600px] text-base">
+        <thead class="bg-surface text-left">
+          <tr>
+            <th class="p-3">Pedido</th>
+            <th class="p-3">Fecha</th>
+            <th class="p-3">Cliente</th>
+            <th class="p-3">Items</th>
+            <th class="p-3">Subtotal</th>
+            <th class="p-3">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% orders.forEach(function (order) { %>
+            <% var badge = statusBadge(order.status); %>
+            <tr class="border-t border-border">
+              <td class="p-3"><a href="/admin/pedidos/<%= order.id %>" class="underline"><%= order.order_code %></a></td>
+              <td class="p-3"><%= formatDate(order.created_at) %></td>
+              <td class="p-3"><%= order.customer_name || '—' %></td>
+              <td class="p-3"><%= order.items_count %></td>
+              <td class="p-3"><%= formatPrice(Number(order.subtotal)) %></td>
+              <td class="p-3">
+                <span class="rounded border-2 px-2 py-0.5 text-sm font-medium <%= badge.className %>"><%= badge.label %></span>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

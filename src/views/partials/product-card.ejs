@@ -9,7 +9,6 @@
 ------------------------------------------------------------------ %>
 <%
   const primaryImage = product.images.find((img) => img.is_primary) || product.images[0] || null;
-  const secondaryImage = product.images.find((img) => img !== primaryImage) || null;
   const hasDiscount = product.compare_at_price !== null && product.compare_at_price !== undefined;
   const discountPct = hasDiscount
     ? Math.round((1 - Number(product.base_price) / Number(product.compare_at_price)) * 100)
@@ -28,15 +27,18 @@
 %>
 <article class="group/card flex h-full flex-col overflow-hidden rounded-md border border-border bg-surface">
   <a href="/productos/<%= product.slug %>"
-     class="card-media relative block aspect-[3/4] overflow-hidden bg-bg <%= secondaryImage ? 'card-media--has-secondary' : '' %>">
+     class="card-media relative block aspect-[3/4] overflow-hidden bg-bg">
     <%
       // Fase 6b (spec "Card srcset"): 400/800 vía el único helper compartido
       // (app.locals.imageAttrs) — nunca se concatena ancho/.webp acá.
+      //
+      // QA fase 6c: había una segunda foto que se mostraba al pasar el mouse
+      // (crossfade opacity). Pese a dos intentos de arreglo (loading="lazy",
+      // will-change), seguía viéndose como un parpadeo incluso con dos fotos
+      // idénticas — decisión explícita de sacar la reacción al hover del
+      // todo: la card solo reacciona al click para entrar a la ficha.
       const primaryAttrs = primaryImage
         ? imageAttrs(product.id, primaryImage.base_key, { widths: [400, 800], sizes: '(min-width: 1024px) 25vw, 50vw' })
-        : null;
-      const secondaryAttrs = secondaryImage
-        ? imageAttrs(product.id, secondaryImage.base_key, { widths: [400, 800], sizes: '(min-width: 1024px) 25vw, 50vw' })
         : null;
     %>
     <% if (primaryAttrs) { %>
@@ -46,18 +48,7 @@
         sizes="<%= primaryAttrs.sizes %>"
         alt="<%= primaryImage.alt_text %>"
         loading="lazy"
-        class="card-media-primary absolute inset-0 h-full w-full object-cover opacity-100 transition-opacity duration-150"
-      >
-    <% } %>
-    <% if (secondaryAttrs) { %>
-      <img
-        src="<%= secondaryAttrs.src %>"
-        srcset="<%= secondaryAttrs.srcset %>"
-        sizes="<%= secondaryAttrs.sizes %>"
-        alt=""
-        aria-hidden="true"
-        loading="lazy"
-        class="card-media-secondary absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-150"
+        class="absolute inset-0 h-full w-full object-cover"
       >
     <% } %>
     <div class="absolute left-2 top-2 flex flex-col gap-1">

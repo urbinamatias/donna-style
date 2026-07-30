@@ -207,6 +207,59 @@ test('products.remove + variants.replaceForProduct: rollback de transacción no 
   assert.equal(variants[0].size, 'M');
 });
 
+// --- Fase 6c: countWithoutStock (dashboard metric) --------------------
+test('products.countWithoutStock: cuenta un producto solo si TODAS sus variantes tienen stock 0', async () => {
+  const before = await productsModel.countWithoutStock();
+
+  const outOfStock = await makeProduct();
+  await variantsModel.bulkCreate(outOfStock.id, [
+    { size: 'S', stock: 0 },
+    { size: 'M', stock: 0 },
+  ]);
+
+  const mixedStock = await makeProduct();
+  await variantsModel.bulkCreate(mixedStock.id, [
+    { size: 'S', stock: 0 },
+    { size: 'M', stock: 4 },
+  ]);
+
+  const after = await productsModel.countWithoutStock();
+  assert.equal(after, before + 1, 'solo outOfStock debe sumar al conteo; mixedStock no cuenta (D: mixed stock is not out of stock)');
+});
+
+// QA fase 6c: el link "Productos sin stock" del dashboard apuntaba al filtro
+// de STOCK BAJO de /admin/stock (bug real, mezclaba dos conceptos distintos).
+// `findAllForAdmin({ outOfStock: true })` es el filtro real: mismo criterio
+// que `countWithoutStock` (todas las variantes en 0), a nivel de listado.
+test('products.findAllForAdmin: outOfStock trae solo productos con TODAS las variantes en 0', async () => {
+  const outOfStock = await makeProduct();
+  await variantsModel.bulkCreate(outOfStock.id, [
+    { size: 'S', stock: 0 },
+    { size: 'M', stock: 0 },
+  ]);
+
+  const mixedStock = await makeProduct();
+  await variantsModel.bulkCreate(mixedStock.id, [
+    { size: 'S', stock: 0 },
+    { size: 'M', stock: 4 },
+  ]);
+
+  const { rows } = await productsModel.findAllForAdmin({ outOfStock: true, page: 1, perPage: 500 });
+  // `product.id` (de `create()`) llega como string — bigint de Postgres
+  // nunca se auto-convierte a Number por el driver `pg` (evita pérdida de
+  // precisión) — hay que normalizar ambos lados antes de comparar.
+  const ids = rows.map((r) => Number(r.id));
+  assert.ok(ids.includes(Number(outOfStock.id)));
+  assert.ok(!ids.includes(Number(mixedStock.id)));
+});
+
+test('products.countWithoutStock: un producto sin variantes no cuenta (nada que esté "en 0")', async () => {
+  const before = await productsModel.countWithoutStock();
+  await makeProduct();
+  const after = await productsModel.countWithoutStock();
+  assert.equal(after, before, 'producto sin ninguna variante no debe sumar al conteo de sin-stock');
+});
+
 test.after(async () => {
   if (createdProductIds.length > 0) {
     await pool.query('DELETE FROM products WHERE id = ANY($1::bigint[])', [createdProductIds]);

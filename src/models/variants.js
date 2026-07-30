@@ -1,5 +1,27 @@
 // Acceso a datos de `variants`. SQL crudo parametrizado, sin ORM.
 const db = require('../db/pool');
+const { LOW_STOCK_THRESHOLD } = require('../services/orders-status');
+
+// El SKU es un dato interno (identificador de inventario/proveedor), nunca
+// algo que la dueña carga o ve (fase 6c, QA: se mostraba como campo editable
+// "SKU (opcional)" en cada fila de la grilla, dándole protagonismo a un
+// concepto que no le sirve). Se genera solo, a partir del id del producto
+// (estable, nunca cambia) + talle + color — nunca del slug del producto,
+// que si se congela distinto del nombre (CLAUDE.md, freeze de slug) igual
+// podría no reflejar el nombre actual.
+function skuPart(value) {
+  if (!value) return null;
+  const normalized = String(value)
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Z0-9]+/g, '');
+  return normalized || null;
+}
+
+function autoSku(productId, size, color) {
+  return `SKU-${productId}-${skuPart(size) || 'U'}-${skuPart(color) || 'U'}`;
+}
 
 // variants: [{ size, sizeOrder, color, colorHex, sku, stock, priceOverride }]
 async function bulkCreate(productId, variants) {
@@ -14,7 +36,7 @@ async function bulkCreate(productId, variants) {
         v.sizeOrder ?? 0,
         v.color ?? null,
         v.colorHex ?? null,
-        v.sku ?? null,
+        v.sku ?? autoSku(productId, v.size, v.color),
         v.stock ?? 0,
         v.priceOverride ?? null
       );
@@ -85,7 +107,7 @@ async function replaceForProduct(productId, variants, client = db) {
         v.sizeOrder ?? 0,
         v.color ?? null,
         v.colorHex ?? null,
-        v.sku ?? null,
+        v.sku ?? autoSku(productId, v.size, v.color),
         v.stock ?? 0,
         v.priceOverride ?? null
       );
@@ -106,4 +128,84 @@ async function removeById(id, client = db) {
   await client.query('DELETE FROM variants WHERE id = $1', [id]);
 }
 
-module.exports = { bulkCreate, findByProductId, findByIds, replaceForProduct, removeById };
+function stripFullCount(row) {
+  const { full_count, ...rest } = row;
+  return rest;
+}
+
+// Listado admin de stock (Fase 6c, design.md "findAllForAdmin"): incluye
+// variantes de productos inactivos (spec "Rows of inactive products MUST
+// still be listed"). `lowStock` usa el umbral centralizado de
+// orders-status.js, nunca hardcodeado acá.
+async function findAllForAdmin({ productId = null, lowStock = false, page = 1, perPage = 100 } = {}) {
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const offset = (safePage - 1) * perPage;
+
+  const { rows } = await db.query(
+    `SELECT v.*, p.name AS product_name, COUNT(*) OVER() AS full_count
+     FROM variants v
+     JOIN products p ON p.id = v.product_id
+     WHERE ($1::bigint IS NULL OR v.product_id = $1)
+       AND ($2::boolean IS NOT TRUE OR v.stock <= $3::int)
+     ORDER BY p.name, v.size_order, v.color
+     LIMIT $4 OFFSET $5`,
+    [productId, lowStock, LOW_STOCK_THRESHOLD, perPage, offset]
+  );
+
+  const total = rows.length > 0 ? Number(rows[0].full_count) : 0;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  return { rows: rows.map(stripFullCount), total, totalPages };
+}
+
+// Guardado bulk de stock (Fase 6c, design.md D6): un solo UPDATE...FROM VALUES
+// en una transacción, last-write-wins. `entries` ya viene filtrado por la
+// ruta a solo las filas que cambiaron. Devuelve cuántas filas se escribieron
+// de verdad (ids inexistentes simplemente no matchean, no rompen el resto).
+async function updateStockBulk(entries, client = db) {
+  if (!entries || entries.length === 0) return 0;
+  const values = [];
+  const placeholders = entries
+    .map((e, i) => {
+      values.push(e.id, e.stock);
+      return `($${i * 2 + 1}::bigint, $${i * 2 + 2}::int)`;
+    })
+    .join(', ');
+  const { rowCount } = await client.query(
+    `UPDATE variants AS v SET stock = d.stock
+     FROM (VALUES ${placeholders}) AS d(id, stock)
+     WHERE v.id = d.id`,
+    values
+  );
+  return rowCount;
+}
+
+// Descuento guardado (design.md D3): update condicional + assertion de
+// rowCount. Si `stock < quantity`, 0 filas afectadas -> false, sin escribir
+// nada — el caller (ruta de confirmar pedido) decide tirar INSUFFICIENT_STOCK
+// y hacer rollback de toda la transacción, nunca deja que el CHECK stock >= 0
+// de la DB reviente en su lugar.
+async function decrementStock(variantId, quantity, client = db) {
+  const { rowCount } = await client.query(
+    'UPDATE variants SET stock = stock - $1 WHERE id = $2 AND stock >= $1',
+    [quantity, variantId]
+  );
+  return rowCount === 1;
+}
+
+// Reposición (design.md D3): sin guard — sumar nunca puede violar
+// CHECK (stock >= 0).
+async function incrementStock(variantId, quantity, client = db) {
+  await client.query('UPDATE variants SET stock = stock + $1 WHERE id = $2', [quantity, variantId]);
+}
+
+module.exports = {
+  bulkCreate,
+  findByProductId,
+  findByIds,
+  replaceForProduct,
+  removeById,
+  findAllForAdmin,
+  updateStockBulk,
+  decrementStock,
+  incrementStock,
+};

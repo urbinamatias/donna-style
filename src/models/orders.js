@@ -56,4 +56,81 @@ async function findByToken(publicToken) {
   return { ...order, items };
 }
 
-module.exports = { createWithItems, findByToken };
+function stripFullCount(row) {
+  const { full_count, ...rest } = row;
+  return rest;
+}
+
+// Listado admin (Fase 6c, design.md "findAllForAdmin"): newest first,
+// filtrable por status. Un status inválido/desconocido se resuelve como "sin
+// filtro" acá mismo — la ruta decide si eso corresponde a un 200 vacío o no.
+async function findAllForAdmin({ status = null, page = 1, perPage = 50 } = {}) {
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const offset = (safePage - 1) * perPage;
+
+  const { rows } = await pool.query(
+    `SELECT o.*, COUNT(*) OVER() AS full_count
+     FROM orders o
+     WHERE ($1::text IS NULL OR o.status = $1)
+     ORDER BY o.created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [status, perPage, offset]
+  );
+
+  const total = rows.length > 0 ? Number(rows[0].full_count) : 0;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  return { rows: rows.map(stripFullCount), total, totalPages };
+}
+
+// Detalle admin por id (Fase 6c): misma forma de dato que findByToken (orden
+// + items), pero por id — nunca expuesto públicamente por esta vía porque
+// vive detrás de requireAdmin.
+async function findByIdWithItems(id) {
+  const { rows: orderRows } = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+  const order = orderRows[0];
+  if (!order) return null;
+
+  const items = await findItems(order.id);
+  return { ...order, items };
+}
+
+// `FOR UPDATE` (design.md D2): bloquea la fila dentro de la transacción del
+// caller para que dos confirmaciones concurrentes del mismo pedido nunca
+// lean el mismo `from` a la vez.
+async function findStatusForUpdate(id, client = pool) {
+  const { rows } = await client.query('SELECT status FROM orders WHERE id = $1 FOR UPDATE', [id]);
+  return rows[0]?.status ?? null;
+}
+
+async function findItems(orderId, client = pool) {
+  const { rows } = await client.query('SELECT * FROM order_items WHERE order_id = $1 ORDER BY id', [orderId]);
+  return rows;
+}
+
+// CAS (design.md D2, más fuerte que `WHERE status <> 'confirmado'`):
+// `UPDATE ... WHERE id = $1 AND status = $2`. `rowCount === 0` significa que
+// otra transacción ya movió el status primero (double-submit, dos tabs) —
+// el caller lo interpreta como "la transición ya no aplica", nunca como error.
+async function updateStatus(id, expectedFrom, next, client = pool) {
+  const { rows } = await client.query(
+    'UPDATE orders SET status = $3 WHERE id = $1 AND status = $2 RETURNING *',
+    [id, expectedFrom, next]
+  );
+  return rows[0] || null;
+}
+
+async function countByStatus(status) {
+  const { rows } = await pool.query('SELECT count(*)::int AS n FROM orders WHERE status = $1', [status]);
+  return rows[0].n;
+}
+
+module.exports = {
+  createWithItems,
+  findByToken,
+  findAllForAdmin,
+  findByIdWithItems,
+  findStatusForUpdate,
+  findItems,
+  updateStatus,
+  countByStatus,
+};

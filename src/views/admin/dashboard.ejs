@@ -1,20 +1,33 @@
-<%# Dashboard (§6.3): solo esqueleto y navegación en 6a — pedidos pendientes
-  y stock bajo quedan para 6c, cuando exista el flujo de pedidos en el panel
-  (proposal "Out of Scope"). %>
+<%# Dashboard (§6.3, Fase 6c: spec "Real dashboard metrics"): 3 métricas
+  reales — pedidos pendientes, productos sin stock, productos activos.
+  Pedidos pendientes y sin-stock enlazan a la vista filtrada correspondiente
+  (spec: "MUST link to..."). `0` se muestra siempre, nunca se oculta
+  (principio de ausencia §4.5: acá 0 SÍ es un dato real a mostrar, no un
+  placeholder vacío). %>
 <div class="flex flex-col gap-6">
   <h1 class="font-brand text-3xl">Dashboard</h1>
 
-  <div class="rounded-lg border-2 border-border bg-surface p-4">
-    <p class="text-base text-textMuted">Productos activos</p>
-    <p class="text-3xl font-semibold"><%= activeCount %></p>
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <a href="/admin/pedidos?estado=pendiente" class="rounded-lg border-2 border-border bg-surface p-4 hover:border-borderStrong">
+      <p class="text-base text-textMuted">Pedidos pendientes</p>
+      <p class="text-3xl font-semibold"><%= pendingOrdersCount %></p>
+    </a>
+
+    <a href="/admin/productos?estado=sin_stock" class="rounded-lg border-2 border-border bg-surface p-4 hover:border-borderStrong">
+      <p class="text-base text-textMuted">Productos sin stock</p>
+      <p class="text-3xl font-semibold"><%= outOfStockCount %></p>
+    </a>
+
+    <a href="/admin/productos?estado=activos" class="rounded-lg border-2 border-border bg-surface p-4 hover:border-borderStrong">
+      <p class="text-base text-textMuted">Productos activos</p>
+      <p class="text-3xl font-semibold"><%= activeCount %></p>
+    </a>
   </div>
 
   <div class="flex flex-col gap-3">
     <a href="/admin/categorias" class="rounded-lg border-2 border-border bg-surface p-4 text-lg font-medium hover:border-borderStrong">Gestionar categorías</a>
     <a href="/admin/productos" class="rounded-lg border-2 border-border bg-surface p-4 text-lg font-medium hover:border-borderStrong">Gestionar productos</a>
+    <a href="/admin/stock" class="rounded-lg border-2 border-border bg-surface p-4 text-lg font-medium hover:border-borderStrong">Gestionar stock</a>
+    <a href="/admin/pedidos" class="rounded-lg border-2 border-border bg-surface p-4 text-lg font-medium hover:border-borderStrong">Gestionar pedidos</a>
   </div>
-
-  <p class="text-base text-textMuted">
-    Pedidos y stock masivo todavía no están disponibles en este panel — llegan en la próxima etapa.
-  </p>
 </div>

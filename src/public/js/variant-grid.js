@@ -63,8 +63,8 @@
   }
 
   // Lee el estado ACTUAL de la grilla en pantalla (antes de regenerar) para
-  // preservar stock/sku ya cargados (spec "Regeneration preserves entered
-  // data").
+  // preservar el stock ya cargado (spec "Regeneration preserves entered
+  // data"). El SKU no se preserva porque no se pide: lo genera el servidor.
   function readCurrentRows() {
     var rows = {};
     grid.querySelectorAll('[data-row]').forEach(function (rowEl) {
@@ -72,7 +72,6 @@
       var color = rowEl.getAttribute('data-color') || '';
       var key = size + '|' + color;
       rows[key] = {
-        sku: rowEl.querySelector('[data-field="sku"]').value,
         stock: rowEl.querySelector('[data-field="stock"]').value,
       };
     });
@@ -84,8 +83,7 @@
   }
 
   // QA: con text-xs y sin ancho fijo, el campo de Stock pasaba desapercibido
-  // entre talle/color/SKU — se subió a text-sm con más padding y un ancho
-  // explícito por campo (más chico para el numérico, más ancho para SKU).
+  // — se subió a text-sm con más padding y un ancho explícito.
   function labeledInput(labelText, type, name, value, dataField) {
     var wrap = document.createElement('label');
     wrap.className = 'flex flex-col gap-1 text-sm font-medium';
@@ -95,13 +93,11 @@
     input.type = type;
     input.name = name;
     input.value = value;
-    input.className =
-      'rounded border-2 border-borderStrong px-3 py-2 text-base font-normal ' +
-      (dataField === 'stock' ? 'w-24' : 'w-36');
+    input.className = 'rounded border-2 border-borderStrong px-3 py-2 text-base font-normal w-24';
     if (dataField) input.setAttribute('data-field', dataField);
     if (type === 'number') {
       input.min = '0';
-      input.step = type === 'number' && dataField === 'stock' ? '1' : 'any';
+      input.step = '1';
     }
     wrap.appendChild(span);
     wrap.appendChild(input);
@@ -155,9 +151,7 @@
       row.appendChild(hiddenInput('variants[' + rowIndex + '][size_order]', String(sizeOrder)));
 
       var stockField = labeledInput('Cantidad en stock', 'number', 'variants[' + rowIndex + '][stock]', preset.stock || '0', 'stock');
-      var skuField = labeledInput('SKU (opcional)', 'text', 'variants[' + rowIndex + '][sku]', preset.sku || '', 'sku');
       row.appendChild(stockField.wrap);
-      row.appendChild(skuField.wrap);
 
       group.appendChild(row);
     });
@@ -180,7 +174,7 @@
     var presets = {};
     rows.forEach(function (v) {
       var key = (v.size || '') + '|' + (v.color || '');
-      presets[key] = { sku: v.sku || '', stock: v.stock != null ? String(v.stock) : '0' };
+      presets[key] = { stock: v.stock != null ? String(v.stock) : '0' };
     });
     return presets;
   }

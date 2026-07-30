@@ -1,0 +1,61 @@
+<%# Detalle de pedido (Fase 6c, spec admin-orders "Order detail"). Misma
+  forma de datos que la vista pública /pedido/:token (pages/order.ejs), más
+  nota, link público y controles de transición según `availableTransitions`
+  (armado en la ruta a partir de ordersStatus.TRANSITIONS — nunca hardcodeado
+  acá, spec "Only valid transitions offered"). %>
+<% var badge = statusBadge(order.status); %>
+<div class="flex flex-col gap-6">
+  <a href="/admin/pedidos" class="w-fit text-base underline">&larr; Volver al listado</a>
+
+  <div class="flex items-center justify-between">
+    <h1 class="font-brand text-3xl">Pedido <%= order.order_code %></h1>
+    <span class="rounded border-2 px-2 py-0.5 text-sm font-medium <%= badge.className %>"><%= badge.label %></span>
+  </div>
+
+  <p class="text-base text-textMuted">
+    <%= formatDate(order.created_at) %>
+    <% if (order.customer_name) { %> · <%= order.customer_name %><% } %>
+  </p>
+
+  <% if (order.customer_note) { %>
+    <p class="rounded-lg border-2 border-border bg-surface p-3 text-base"><span class="text-textMuted">Nota:</span> <%= order.customer_note %></p>
+  <% } %>
+
+  <ul class="flex flex-col divide-y divide-border border-y border-border">
+    <% order.items.forEach(function (item) { %>
+      <li class="flex items-center justify-between gap-4 py-3">
+        <div class="flex flex-col gap-0.5">
+          <p class="font-medium"><%= item.product_name_snapshot %></p>
+          <% if (item.size || item.color) { %>
+            <p class="text-sm text-textMuted"><%= [item.size, item.color].filter(Boolean).join(' / ') %></p>
+          <% } %>
+          <p class="text-sm text-textMuted"><%= item.quantity %> x <%= formatPrice(Number(item.unit_price)) %></p>
+        </div>
+        <span class="shrink-0 font-semibold"><%= formatPrice(Number(item.unit_price) * item.quantity) %></span>
+      </li>
+    <% }) %>
+  </ul>
+
+  <div class="flex items-baseline justify-end gap-3 text-lg font-semibold">
+    <span>Subtotal</span>
+    <span><%= formatPrice(Number(order.subtotal)) %></span>
+  </div>
+
+  <a href="/pedido/<%= order.public_token %>" class="text-base underline" target="_blank" rel="noopener">Ver página pública del pedido</a>
+
+  <% if (availableTransitions.length === 0) { %>
+    <p class="text-base text-textMuted">Este pedido está en un estado final, no admite más cambios.</p>
+  <% } else { %>
+    <div class="flex flex-wrap gap-3">
+      <% availableTransitions.forEach(function (t) { %>
+        <form method="POST" action="/admin/pedidos/<%= order.id %>/estado">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="estado" value="<%= t.to %>">
+          <button type="submit" class="rounded-lg px-4 py-2 text-base font-semibold <%= transitionButtonClass(t.to) %>">
+            Marcar como <%= t.badge.label %>
+          </button>
+        </form>
+      <% }) %>
+    </div>
+  <% } %>
+</div>

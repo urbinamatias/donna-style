@@ -179,7 +179,12 @@ async function findByIdWithDetails(id) {
 // Listado admin (Fase 6a, spec "Product listing and editing" + "Filter
 // list"): a diferencia de findByCategory, incluye inactivos — es el panel,
 // no el catálogo público.
-async function findAllForAdmin({ isActive = null, categoryIds = null, page = 1, perPage = 50 } = {}) {
+// `outOfStock` (Fase 6c, QA: el link "Productos sin stock" del dashboard
+// enlazaba a Stock con el filtro de STOCK BAJO — un concepto totalmente
+// distinto, `stock <= 2` a nivel variante, no "todas las variantes en 0" a
+// nivel producto). Misma regla que `countWithoutStock`: `bool_and(stock = 0)`
+// exige que el producto tenga al menos una variante y que TODAS estén en 0.
+async function findAllForAdmin({ isActive = null, categoryIds = null, outOfStock = false, page = 1, perPage = 50 } = {}) {
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   const offset = (safePage - 1) * perPage;
 
@@ -191,9 +196,12 @@ async function findAllForAdmin({ isActive = null, categoryIds = null, page = 1, 
          SELECT 1 FROM product_categories pc
          WHERE pc.product_id = p.id AND pc.category_id = ANY($2::bigint[])
        ))
+       AND ($3::boolean IS NOT TRUE OR p.id IN (
+         SELECT v.product_id FROM variants v GROUP BY v.product_id HAVING bool_and(v.stock = 0)
+       ))
      ORDER BY p.created_at DESC
-     LIMIT $3 OFFSET $4`,
-    [isActive, categoryIds, perPage, offset]
+     LIMIT $4 OFFSET $5`,
+    [isActive, categoryIds, outOfStock, perPage, offset]
   );
 
   const total = rows.length > 0 ? Number(rows[0].full_count) : 0;
@@ -305,6 +313,23 @@ async function setCategories(productId, categoryIds, client = db) {
   );
 }
 
+// Métrica del dashboard (Fase 6c, spec "Real dashboard metrics"): un producto
+// cuenta como "sin stock" solo cuando TODAS sus variantes están en 0 — un
+// producto mixto (una talla en 0, otra con stock) NO cuenta. Un producto sin
+// ninguna variante tampoco cuenta: no hay nada que esté "en 0". `HAVING
+// bool_and(stock = 0)` expresa exactamente esa regla en una sola query.
+async function countWithoutStock() {
+  const { rows } = await db.query(
+    `SELECT count(*)::int AS n FROM (
+       SELECT v.product_id
+       FROM variants v
+       GROUP BY v.product_id
+       HAVING bool_and(v.stock = 0)
+     ) AS out_of_stock`
+  );
+  return rows[0].n;
+}
+
 module.exports = {
   create,
   findBySlug,
@@ -320,4 +345,5 @@ module.exports = {
   update,
   remove,
   hasOrders,
+  countWithoutStock,
 };

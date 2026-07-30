@@ -136,12 +136,18 @@
           </div>
         <% } %>
 
+        <%# Bug QA fase 6c: estos dos textos se calculaban solo con
+          `defaultVariant` en el server y nunca se volvían a tocar — al
+          cambiar de talle/color, seguían mostrando el stock de la
+          combinación inicial. `data-stock-available`/`data-stock-warning`
+          les dan un gancho para que variant-selector.js los actualice en
+          `resolveVariant()`, igual que ya hace con el `max` de cantidad. %>
         <% if (defaultVariant) { %>
-          <p class="mb-4 text-sm text-textMuted">Stock disponible: <%= defaultVariant.stock %></p>
+          <p data-stock-available class="mb-4 text-sm text-textMuted">Stock disponible: <%= defaultVariant.stock %></p>
         <% } %>
 
-        <% if (defaultVariant && defaultVariant.stock <= 2) { %>
-          <p class="mb-4 text-sm font-medium text-error">
+        <% if (defaultVariant) { %>
+          <p data-stock-warning aria-live="polite" class="mb-4 text-sm font-medium text-error <%= defaultVariant.stock <= 2 ? '' : 'hidden' %>">
             <%= defaultVariant.stock === 1 ? '¡Es el último!' : `Quedan ${defaultVariant.stock}` %>
           </p>
         <% } %>

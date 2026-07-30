@@ -414,14 +414,103 @@ anteriores.
 Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
 archive, Engram #367-#373.
 
+### Fase 6c — Panel: stock + pedidos ✅ cerrada
+
+Tabla de stock (`/admin/stock`) filtrable por producto y por stock bajo
+(umbral fijo `stock <= 2`, mismo concepto que "Quedan 2"/"¡Es el último!"
+de la ficha pública — centralizado en `src/services/orders-status.js`,
+`LOW_STOCK_THRESHOLD`), edición en lote en una sola transacción
+(`variantsModel.updateStockBulk`). Listado/detalle de pedidos
+(`/admin/pedidos`) con cambio de estado
+(pendiente/confirmado/entregado/cancelado). Máquina de transiciones única
+fuente de verdad en `orders-status.js` (`TRANSITIONS`): pendiente→confirmado
+o cancelado; confirmado→entregado o cancelado; cancelado→pendiente
+(reabrir); entregado terminal. `pendiente→entregado` directo bloqueado a
+propósito, para garantizar que el stock siempre se descuenta antes de
+entregar.
+
+**Únicas dos transiciones que mueven stock** (confirmado esta fase):
+pasar a "confirmado" descuenta stock de cada variante del pedido; pasar de
+"confirmado" a "cancelado" lo repone. Todo vía `withTransaction` con CAS
+(`SELECT ... FOR UPDATE` + `UPDATE orders ... WHERE status = <leído>`) para
+que dos confirmaciones o cancelaciones simultáneas nunca muevan stock dos
+veces, y descuento guardado (`UPDATE variants ... WHERE stock >= $1` +
+assertion de `rowCount`) para que confirmar con stock insuficiente rechace
+TODA la transacción con mensaje claro, en vez de reventar el CHECK de la
+DB. Items con `variant_id NULL` (variante borrada) se saltean, nunca
+rompen. Dashboard completado con las 3 métricas reales: pedidos
+pendientes, productos sin stock (TODAS las variantes en 0, no "alguna"),
+productos activos — las tres con link funcional a su vista filtrada.
+
+**QA extensa post-apply, con bugs reales de datos encontrados y
+corregidos** (no solo estética, documentados en detalle en Engram
+`sdd/donna-style-web-fase6c-stock-pedidos/verify-report` #383):
+
+1. **Bug crítico, mismo patrón que el de `image_alt` de Fase 6b**: `qs`
+   (usado por `express.urlencoded({extended:true})`) interpreta un
+   bracket-key puramente numérico (`stock[<id>]`, `original[<id>]`) como
+   índice de array, no clave de objeto, cuando el id es <= su `arrayLimit`
+   (20) — y compacta arrays dispersos, perdiendo los ids reales. En Stock
+   era peor que en `image_alt`: al haber MUCHOS ids en un solo submit
+   (toda la tabla), se mezclaban entre filas — explica el síntoma
+   reportado en QA ("a veces resetea a 0", "0 variantes actualizadas",
+   inconsistente según qué producto"). Fix: prefijo `v_` en las claves,
+   igual criterio que `image_alt[img_<id>]`. **Regla de proyecto
+   confirmada dos veces ya**: cualquier `name="algo[<id_numerico>]"` bajo
+   `express.urlencoded({extended:true})` necesita un prefijo no-numérico.
+2. Mensaje de error de stock inválido identifica producto + talle/color
+   (vía `variantsModel.findByIds`), no el id interno — inservible para la
+   dueña con varias filas editadas a la vez.
+3. Dashboard "Productos sin stock" enlazaba al filtro de stock bajo de
+   variante (`/admin/stock?bajo=1`) en vez de "todas las variantes en 0"
+   a nivel producto — filtro real nuevo `estado=sin_stock` en
+   `/admin/productos` (`productsModel.findAllForAdmin({ outOfStock })`).
+   "Productos activos" no tenía link, ahora sí.
+4. "Stock disponible"/"Quedan N" en la ficha pública eran texto estático
+   calculado una vez en el server — nunca se actualizaban al cambiar de
+   talle/color (bug real, no solo cosmético). `variant-selector.js` ahora
+   los sincroniza (`data-stock-available`/`data-stock-warning`) igual que
+   ya hacía con el máximo de cantidad.
+5. SKU pasó de campo editable "opcional" en la grilla de variantes a
+   100% automático (`variantsModel.autoSku`, formato
+   `SKU-<productId>-<TALLE>-<COLOR>`) — decisión explícita: "la dueña no
+   sabe qué es un SKU y no tiene por qué saberlo". Sacado de
+   `variant-grid.js` y de la tabla de Stock.
+6. Bug de build, no de código: `tailwind.config.js` no escaneaba
+   `src/services/`, así que las clases de color que arman
+   `orders-status.js` (badges de estado, `transitionButtonClass`) nunca
+   se generaban en el CSS final — el botón "Confirmar" salía transparente,
+   "Pendiente"/"Confirmado" sin relleno, sin ningún error visible. Se
+   agregó `./src/services/**/*.js` al `content` de Tailwind.
+7. Parpadeo de hover en las cards del catálogo (persistía pese a dos
+   intentos de arreglo — `loading="lazy"` en la segunda foto,
+   `will-change: opacity` para forzar capa de composición — incluso con
+   dos fotos idénticas): decisión explícita de sacar la reacción al hover
+   del todo. La card ya no tiene segunda imagen ni crossfade, solo
+   reacciona al click.
+8. Diseño: botón "Guardar" de Stock movido a la barra de filtros (antes
+   al final de la tabla), botón "Volver al listado" en detalle de pedido,
+   badges de estado con color de fondo (pendiente ámbar, confirmado azul,
+   entregado verde, cancelado rojo) y botones de transición coloreados
+   por semántica, todo con una sola fuente de verdad en
+   `orders-status.js`.
+9. **Desvío de diseño confirmado a propósito**: `design.md` original
+   especificaba `containerClass: 'max-w-5xl'` (ancho de escritorio) para
+   Stock/Pedidos. A pedido explícito de la dueña, se revirtió: ambas
+   vistas usan el mismo ancho por defecto (`max-w-2xl`) que
+   Dashboard/Categorías/Productos, para que el panel se vea uniforme.
+   Las tablas mantienen su propio scroll horizontal (`overflow-x-auto`)
+   para no romper contenido en pantallas angostas.
+
+247/247 tests (`node --test`, confirmado por la dueña desde Windows, dos
+veces tras las rondas de QA). Sin migraciones nuevas — el esquema de
+`variants`/`orders`/`order_items` ya cubría todo.
+
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #376-#384.
+
 ## Fases sin empezar
 
-6c. **Panel: stock + pedidos** — tabla de stock editable/filtrable,
-   listado/detalle de pedidos, cambio de estado
-   (pendiente/confirmado/entregado/cancelado). Acá se decrementa stock
-   por primera vez (al pasar a "confirmado") y se repone (de "confirmado"
-   a "cancelado") — confirmado esta sesión: son las ÚNICAS dos
-   transiciones que mueven stock, el resto son solo de estado.
 6d. **Panel: carrusel + configuración** — CRUD de `carousel_slides`
    (hoy solo por seed) con los mismos 3 estados (0/1/2+ imágenes) que ya
    tiene el home. Migración de `WHATSAPP_ADMIN`/`INSTAGRAM`/

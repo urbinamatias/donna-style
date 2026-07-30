@@ -50,6 +50,8 @@
     var variantIdInput = widget.querySelector('[data-variant-id-input]');
     var quantityInput = widget.querySelector('[data-quantity-input]');
     var addButton = widget.querySelector('[data-add-button]');
+    var stockAvailable = widget.querySelector('[data-stock-available]');
+    var stockWarning = widget.querySelector('[data-stock-warning]');
     var groups = {};
     table.axes.forEach(function (axis) {
       var group = widget.querySelector('[data-axis-group="' + axis + '"]');
@@ -93,6 +95,18 @@
         quantityInput.max = String(variant.stock);
         var current = Number.parseInt(quantityInput.value, 10) || 1;
         if (current > variant.stock) quantityInput.value = String(variant.stock);
+      }
+      if (stockAvailable && variant) {
+        stockAvailable.textContent = 'Stock disponible: ' + variant.stock;
+      }
+      if (stockWarning && variant) {
+        if (variant.stock <= 2) {
+          stockWarning.textContent = variant.stock === 1 ? '¡Es el último!' : 'Quedan ' + variant.stock;
+          stockWarning.classList.remove('hidden');
+        } else {
+          stockWarning.textContent = '';
+          stockWarning.classList.add('hidden');
+        }
       }
     }
 

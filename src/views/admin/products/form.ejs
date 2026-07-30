@@ -50,7 +50,7 @@
                 <label class="flex-1 text-sm">
                   Texto alternativo
                   <span class="block text-xs font-normal text-textMuted">Lo que describe la foto para lectores de pantalla y buscadores — no se ve en la página.</span>
-                  <input type="text" name="image_alt[<%= img.id %>]" value="<%= img.alt_text %>" required
+                  <input type="text" name="image_alt[img_<%= img.id %>]" value="<%= img.alt_text %>" required
                          form="product-form" class="w-full rounded border border-border px-2 py-1 text-sm">
                 </label>
 
@@ -261,7 +261,7 @@
         vacío. %>
       <label class="flex items-center gap-2 text-sm">
         <input type="checkbox" id="no-axes-checkbox">
-        Este producto no tiene talles ni colores (SKU único)
+        Este producto no tiene talles ni colores (un solo tipo)
       </label>
 
       <button type="button" id="generate-grid" class="w-fit rounded-lg border-2 border-borderStrong px-4 py-2 text-base font-medium">

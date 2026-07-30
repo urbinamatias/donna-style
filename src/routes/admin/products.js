@@ -34,29 +34,46 @@ function parseVariantsFromBody(raw) {
   // guardar un producto así perdía su única variante). La grilla del
   // cliente nunca manda filas vacías/placeholder, así que basta con
   // confirmar que la fila existe.
+  // El SKU nunca llega del cliente (fase 6c, QA: "la dueña no tiene por qué
+  // saberlo") — `variantsModel` lo genera solo a partir del id de producto +
+  // talle + color.
   return entries
     .filter((row) => row && typeof row === 'object')
     .map((row) => ({
       size: row.size || null,
       color: row.color || null,
       colorHex: row.color_hex || null,
-      sku: row.sku || null,
       stock: row.stock ? Number(row.stock) : 0,
       sizeOrder: row.size_order ? Number(row.size_order) : 0,
       priceOverride: row.price_override ? Number(row.price_override) : null,
     }));
 }
 
-// `image_alt[<id>]=texto` — el texto alternativo de cada foto se edita como
-// parte del form general del producto (QA: un botón "Guardar" por foto era
-// ruido, la dueña quiere UN solo botón que guarde todo). Los inputs viven
-// fuera de #product-form en el DOM (conviven con subir/reordenar/borrar,
-// que siguen siendo acciones de un solo click) pero se asocian a este form
-// vía el atributo HTML `form="product-form"` de cada input.
+// `image_alt[img_<id>]=texto` — el texto alternativo de cada foto se edita
+// como parte del form general del producto (QA: un botón "Guardar" por foto
+// era ruido, la dueña quiere UN solo botón que guarde todo). Los inputs viven
+// fuera de #product-form en el DOM (conviven con subir/reordenar/borrar, que
+// siguen siendo acciones de un solo click) pero se asocian a este form vía el
+// atributo HTML `form="product-form"` de cada input.
+//
+// Bug real encontrado en QA de Fase 6c (afectaba a Fase 6b desde su origen):
+// con la clave puramente numérica `image_alt[<id>]`, `qs` (usado por
+// `express.urlencoded({extended:true})`) interpreta el bracket como índice de
+// array, no como clave de objeto, cuando el id es <= su `arrayLimit` (20) —
+// y ADEMÁS compacta arrays dispersos, así que `image_alt[7]` se convertía en
+// `image_alt: ['texto']` con el id real 7 perdido. Sobrevivía sin síntomas
+// mientras los ids de imagen fueran altos (>20), y fallaba en silencio (sin
+// guardar nada, sin error) apenas la secuencia de `product_images` volvía a
+// empezar de cero (ej. después de `node db/seed.js`, que hace `RESTART
+// IDENTITY`). El prefijo `img_` fuerza a `qs` a tratarlo siempre como objeto,
+// sin importar el valor del id.
 function parseImageAlt(raw) {
   if (!raw || typeof raw !== 'object') return [];
   return Object.entries(raw)
-    .map(([imageId, text]) => ({ imageId: Number(imageId), altText: String(text || '').trim() }))
+    .map(([key, text]) => {
+      const match = /^img_(\d+)$/.exec(key);
+      return { imageId: match ? Number(match[1]) : NaN, altText: String(text || '').trim() };
+    })
     .filter((row) => Number.isInteger(row.imageId) && row.altText.length > 0);
 }
 
@@ -79,6 +96,7 @@ async function renderForm(res, { title, product = null, categories, error = null
 router.get('/admin/productos', async (req, res, next) => {
   try {
     const isActive = req.query.estado === 'activos' ? true : req.query.estado === 'inactivos' ? false : null;
+    const outOfStock = req.query.estado === 'sin_stock';
     const categoryId = req.query.categoria_id ? Number(req.query.categoria_id) : null;
 
     // Rollup igual que public.js (§0.1 regla 2): filtrar por una categoría
@@ -91,7 +109,7 @@ router.get('/admin/productos', async (req, res, next) => {
       categoryIds = childIds.length > 0 ? [categoryId, ...childIds] : [categoryId];
     }
 
-    const { rows } = await productsModel.findAllForAdmin({ isActive, categoryIds, page: 1, perPage: 50 });
+    const { rows } = await productsModel.findAllForAdmin({ isActive, categoryIds, outOfStock, page: 1, perPage: 50 });
     const categories = await categoriesModel.findAll();
 
     res.render('admin/layouts/admin', {

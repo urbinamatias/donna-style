@@ -232,7 +232,7 @@ test('editar producto: el texto alternativo de cada foto se guarda junto con el 
     body:
       `name=Con foto&base_price=150&category_ids=${testCategoryId}` +
       `&variants[0][size]=M&variants[0][stock]=3&variants[0][size_order]=200` +
-      `&image_alt[${imageId}]=${encodeURIComponent('Alt nuevo')}&_csrf=${csrfToken}`,
+      `&image_alt[img_${imageId}]=${encodeURIComponent('Alt nuevo')}&_csrf=${csrfToken}`,
   });
   await res.text();
   assert.equal(res.status, 303);

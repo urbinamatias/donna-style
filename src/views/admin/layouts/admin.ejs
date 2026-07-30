@@ -29,9 +29,11 @@
     <a href="/admin" class="whitespace-nowrap hover:text-brandInk">Dashboard</a>
     <a href="/admin/categorias" class="whitespace-nowrap hover:text-brandInk">Categorías</a>
     <a href="/admin/productos" class="whitespace-nowrap hover:text-brandInk">Productos</a>
+    <a href="/admin/stock" class="whitespace-nowrap hover:text-brandInk">Stock</a>
+    <a href="/admin/pedidos" class="whitespace-nowrap hover:text-brandInk">Pedidos</a>
   </nav>
   <% } %>
-  <main id="main-content" class="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+  <main id="main-content" class="mx-auto w-full <%= typeof containerClass !== 'undefined' ? containerClass : 'max-w-2xl' %> flex-1 px-4 py-6">
     <% if (typeof adminNotice !== 'undefined' && adminNotice) { %>
       <p
         role="status"

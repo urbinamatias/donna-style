@@ -12,6 +12,7 @@
       <option value="" <%= filters.estado === '' ? 'selected' : '' %>>Todos los estados</option>
       <option value="activos" <%= filters.estado === 'activos' ? 'selected' : '' %>>Activos</option>
       <option value="inactivos" <%= filters.estado === 'inactivos' ? 'selected' : '' %>>Inactivos / borrador</option>
+      <option value="sin_stock" <%= filters.estado === 'sin_stock' ? 'selected' : '' %>>Sin stock</option>
     </select>
     <select name="categoria_id" class="rounded border border-border px-2 py-1.5 text-base">
       <option value="">Todas las categorías</option>

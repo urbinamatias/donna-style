@@ -12,8 +12,11 @@ const authRouter = require('./auth');
 const categoriesRouter = require('./categories');
 const productImagesRouter = require('./product-images');
 const productsRouter = require('./products');
+const stockRouter = require('./stock');
+const ordersRouter = require('./orders');
 const { requireAdmin } = require('../../middleware/auth');
 const productsModel = require('../../models/products');
+const ordersModel = require('../../models/orders');
 const config = require('../../config/env');
 
 const router = express.Router();
@@ -43,18 +46,24 @@ router.use('/admin', (req, res, next) => {
   next();
 });
 
-// Dashboard (§6.3): solo el esqueleto y navegación. Pedidos pendientes y
-// stock bajo dependen de datos que recién existen en 6c (proposal "Out of
-// Scope" — Dashboard). El único número real que 6a puede mostrar es el total
-// de productos activos.
+// Dashboard (§6.3, Fase 6c: 3 métricas reales, spec "Real dashboard
+// metrics"): pedidos pendientes, productos sin stock (TODAS sus variantes en
+// 0) y productos activos. `Promise.all` porque las tres son independientes
+// entre sí — ninguna depende del resultado de otra.
 router.get('/admin', async (req, res, next) => {
   try {
-    const { total: activeCount } = await productsModel.findAllForAdmin({ isActive: true, page: 1, perPage: 1 });
+    const [{ total: activeCount }, pendingOrdersCount, outOfStockCount] = await Promise.all([
+      productsModel.findAllForAdmin({ isActive: true, page: 1, perPage: 1 }),
+      ordersModel.countByStatus('pendiente'),
+      productsModel.countWithoutStock(),
+    ]);
 
     res.render('admin/layouts/admin', {
       view: '../dashboard',
       title: `Dashboard — ${config.NOMBRE_TIENDA}`,
       activeCount,
+      pendingOrdersCount,
+      outOfStockCount,
     });
   } catch (err) {
     next(err);
@@ -70,5 +79,7 @@ router.use(categoriesRouter);
 // nunca capture estas rutas por accidente.
 router.use(productImagesRouter);
 router.use(productsRouter);
+router.use(stockRouter);
+router.use(ordersRouter);
 
 module.exports = router;

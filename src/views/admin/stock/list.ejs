@@ -1,0 +1,80 @@
+<%# Panel de stock (Fase 6c, spec admin-stock). Un solo form de bulk-edit:
+  cada fila trae un input de stock + un hidden con el valor "original" tal
+  como se renderizó esta request (la ruta solo persiste filas donde ambos
+  difieren, spec "Partial edit"). Los filtros producto/bajo se repiten como
+  hidden para volver a la misma URL filtrada tras el POST (PRG).
+
+  QA fase 6c: "Guardar" vivía al final de la tabla, la dueña tenía que bajar
+  del todo para encontrarlo. Ahora vive en la misma barra de filtros (mismo
+  header title+acción que Categorías/Productos, "+ Nuevo" ↔ "Guardar" acá),
+  asociado al form real vía `form="stock-form"` — el atributo HTML5 lo
+  vincula sin importar en qué parte del DOM esté. ------------------------ %>
+<div class="flex flex-col gap-6">
+  <div class="flex items-center justify-between">
+    <h1 class="font-brand text-3xl">Stock</h1>
+    <% if (variants.length > 0) { %>
+      <button type="submit" form="stock-form" class="rounded-lg bg-brand px-4 py-2 text-base font-semibold text-white">Guardar</button>
+    <% } %>
+  </div>
+
+  <form method="GET" action="/admin/stock" class="flex flex-wrap items-center gap-3 rounded-lg border-2 border-border bg-surface p-3 text-base">
+    <select name="producto" class="rounded border border-border px-2 py-1.5 text-base">
+      <option value="">Todos los productos</option>
+      <% products.forEach(function (p) { %>
+        <option value="<%= p.id %>" <%= String(filters.producto) === String(p.id) ? 'selected' : '' %>><%= p.name %></option>
+      <% }) %>
+    </select>
+    <label class="flex items-center gap-2">
+      <input type="checkbox" name="bajo" value="1" <%= filters.bajo === '1' ? 'checked' : '' %>>
+      Solo stock bajo
+    </label>
+    <button type="submit" class="rounded-lg border-2 border-borderStrong px-4 py-1.5 text-base font-medium">Filtrar</button>
+  </form>
+
+  <% if (invalidFilterNotice) { %>
+    <p role="status" class="rounded-lg border-2 border-error bg-white px-4 py-3 text-base text-error"><%= invalidFilterNotice %></p>
+  <% } %>
+
+  <% if (variants.length === 0) { %>
+    <p class="text-base text-textMuted">No hay variantes para mostrar con este filtro.</p>
+  <% } else { %>
+    <form method="POST" action="/admin/stock" id="stock-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="producto" value="<%= filters.producto %>">
+      <input type="hidden" name="bajo" value="<%= filters.bajo %>">
+
+      <div class="overflow-x-auto rounded-lg border-2 border-border">
+        <table class="w-full min-w-[500px] text-base">
+          <thead class="bg-surface text-left">
+            <tr>
+              <th class="p-3">Producto</th>
+              <th class="p-3">Talle</th>
+              <th class="p-3">Color</th>
+              <th class="p-3">Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% variants.forEach(function (v) { %>
+              <tr class="border-t border-border <%= v.stock === 0 ? 'bg-error/10' : v.stock <= 2 ? 'bg-bg' : '' %>">
+                <td class="p-3"><%= v.product_name %></td>
+                <td class="p-3"><%= v.size || '—' %></td>
+                <td class="p-3"><%= v.color || '—' %></td>
+                <td class="p-3">
+                  <input type="hidden" name="original[v_<%= v.id %>]" value="<%= v.stock %>">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    name="stock[v_<%= v.id %>]"
+                    value="<%= v.stock %>"
+                    class="w-20 rounded border border-border px-2 py-1 text-base <%= v.stock === 0 ? 'font-semibold text-error' : v.stock <= 2 ? 'font-semibold' : '' %>"
+                  >
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </form>
+  <% } %>
+</div>
