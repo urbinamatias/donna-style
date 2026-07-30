@@ -59,14 +59,24 @@ test('removeLine: remover una línea ausente es idempotente', () => {
 const liveRows = [
   {
     id: 7,
+    product_id: 3,
     stock: 1,
     price: '12000.00',
     product_name: 'Remera Taylor',
     size: 'M',
     color: 'Negro',
-    image_filename: 'placeholders/remera-taylor-1.jpg',
+    image_base_key: 'k3x9abcd',
   },
-  { id: 9, stock: 0, price: '8000.00', product_name: 'Top Básico', size: null, color: 'Blanco', image_filename: null },
+  {
+    id: 9,
+    product_id: 5,
+    stock: 0,
+    price: '8000.00',
+    product_name: 'Top Básico',
+    size: null,
+    color: 'Blanco',
+    image_base_key: null,
+  },
 ];
 
 test('revalidate: sin cambios no genera notices', () => {
@@ -107,7 +117,10 @@ test('summarize: calcula subtotal y count sobre precios vivos, nunca del cliente
   assert.equal(result.lines[0].variantId, 7);
   assert.equal(result.lines[0].name, 'Remera Taylor');
   assert.equal(result.lines[0].lineTotal, 24000);
-  assert.equal(result.lines[0].image, '/img/placeholders/remera-taylor-1.jpg');
+  // Fase 6b (spec "Cart consistency"): el thumbnail deriva SIEMPRE del
+  // helper compartido (image-urls.js), nunca de `/img/${filename}` — mismo
+  // esquema que la card y la ficha, 400w fijo (D10).
+  assert.equal(result.lines[0].image, '/uploads/3/k3x9abcd-400.webp');
 });
 
 test('summarize: sin imagen (principio de ausencia) el campo image es null', () => {

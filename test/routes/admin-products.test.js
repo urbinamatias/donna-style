@@ -117,6 +117,31 @@ test('crear producto válido (sin imágenes) se guarda como borrador is_active=f
   assert.equal(variantRows[0].size, 'M');
 });
 
+test('crear producto con una sola variante "Sin talle" (sin size ni color) conserva esa variante (bug QA: se descartaba en silencio)', async () => {
+  const { cookie, csrfToken } = await loginSession();
+  const slug = `producto-sin-talle-${Date.now()}`;
+  const res = await fetch(`${baseUrl}/admin/productos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+    redirect: 'manual',
+    body:
+      `name=Producto Sin Talle&slug=${slug}&base_price=900&category_ids=${testCategoryId}` +
+      `&variants[0][size]=&variants[0][color]=&variants[0][stock]=3&variants[0][size_order]=0&_csrf=${csrfToken}`,
+  });
+  await res.text();
+  assert.equal(res.status, 303, 'un producto con una sola variante sin ejes es válido, no debe rechazarse');
+
+  const { rows } = await pool.query('SELECT * FROM products WHERE slug = $1', [slug]);
+  assert.equal(rows.length, 1);
+  createdProductIds.push(rows[0].id);
+
+  const { rows: variantRows } = await pool.query('SELECT * FROM variants WHERE product_id = $1', [rows[0].id]);
+  assert.equal(variantRows.length, 1, 'la variante "Sin talle" no debe perderse al guardar');
+  assert.equal(variantRows[0].size, null);
+  assert.equal(variantRows[0].color, null);
+  assert.equal(variantRows[0].stock, 3);
+});
+
 test('editar producto: renombrar NO cambia el slug (freeze confirmado esta sesión)', async () => {
   const { cookie, csrfToken } = await loginSession();
   const { rows: productRows } = await pool.query(
@@ -148,6 +173,72 @@ test('editar producto: renombrar NO cambia el slug (freeze confirmado esta sesi�
   const { rows: after } = await pool.query('SELECT name, slug FROM products WHERE id = $1', [product.id]);
   assert.equal(after[0].name, 'Renombrado');
   assert.equal(after[0].slug, product.slug, 'el slug no debe cambiar al renombrar');
+});
+
+test('editar producto: vuelve al listado con aviso de éxito, no a la misma página (bug QA: "Guardar" no avisaba nada)', async () => {
+  const { cookie, csrfToken } = await loginSession();
+  const { rows: productRows } = await pool.query(
+    `INSERT INTO products (name, slug, base_price) VALUES ('Para listado', $1, 150) RETURNING id`,
+    [`slug-listado-${Date.now()}`]
+  );
+  const product = productRows[0];
+  createdProductIds.push(product.id);
+  await pool.query('INSERT INTO product_categories (product_id, category_id) VALUES ($1, $2)', [
+    product.id,
+    testCategoryId,
+  ]);
+  await pool.query(`INSERT INTO variants (product_id, size, size_order, stock) VALUES ($1, 'M', 200, 3)`, [
+    product.id,
+  ]);
+
+  const res = await fetch(`${baseUrl}/admin/productos/${product.id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+    redirect: 'manual',
+    body:
+      `name=Para listado&base_price=150&category_ids=${testCategoryId}` +
+      `&variants[0][size]=M&variants[0][stock]=3&variants[0][size_order]=200&_csrf=${csrfToken}`,
+  });
+  await res.text();
+  assert.equal(res.status, 303);
+  assert.match(res.headers.get('location'), /\/admin\/productos$/, 'editar debe volver al listado, no a la misma página');
+});
+
+test('editar producto: el texto alternativo de cada foto se guarda junto con el resto (sin form/botón propio, bug QA)', async () => {
+  const { cookie, csrfToken } = await loginSession();
+  const { rows: productRows } = await pool.query(
+    `INSERT INTO products (name, slug, base_price) VALUES ('Con foto', $1, 150) RETURNING id`,
+    [`slug-con-foto-${Date.now()}`]
+  );
+  const product = productRows[0];
+  createdProductIds.push(product.id);
+  await pool.query('INSERT INTO product_categories (product_id, category_id) VALUES ($1, $2)', [
+    product.id,
+    testCategoryId,
+  ]);
+  await pool.query(`INSERT INTO variants (product_id, size, size_order, stock) VALUES ($1, 'M', 200, 3)`, [
+    product.id,
+  ]);
+  const { rows: imageRows } = await pool.query(
+    `INSERT INTO product_images (product_id, base_key, alt_text, is_primary) VALUES ($1, 'abc123', 'Alt viejo', true) RETURNING id`,
+    [product.id]
+  );
+  const imageId = imageRows[0].id;
+
+  const res = await fetch(`${baseUrl}/admin/productos/${product.id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+    redirect: 'manual',
+    body:
+      `name=Con foto&base_price=150&category_ids=${testCategoryId}` +
+      `&variants[0][size]=M&variants[0][stock]=3&variants[0][size_order]=200` +
+      `&image_alt[${imageId}]=${encodeURIComponent('Alt nuevo')}&_csrf=${csrfToken}`,
+  });
+  await res.text();
+  assert.equal(res.status, 303);
+
+  const { rows } = await pool.query('SELECT alt_text FROM product_images WHERE id = $1', [imageId]);
+  assert.equal(rows[0].alt_text, 'Alt nuevo');
 });
 
 test('borrar producto referenciado por un pedido es rechazado, historial intacto', async () => {

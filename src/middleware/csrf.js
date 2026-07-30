@@ -32,21 +32,45 @@ function ensureToken(req, res, next) {
   next();
 }
 
+// Compara el token de sesión contra el candidato de la request ya parseada
+// (body._csrf o header X-CSRF-Token). Extraído de `csrfProtection` para que
+// las rutas multipart (Fase 6b, D6) puedan llamarlo ELLAS MISMAS, después de
+// que multer parseó el body — nunca lanza, siempre boolean.
+function verifyToken(req) {
+  const sessionToken = req.session && req.session.csrfToken;
+  const candidate = (req.body && req.body._csrf) || req.get('X-CSRF-Token');
+  return Boolean(sessionToken && candidate && safeEqual(sessionToken, candidate));
+}
+
+function isMultipart(req) {
+  const contentType = req.get('Content-Type') || '';
+  return contentType.toLowerCase().startsWith('multipart/form-data');
+}
+
 // Verifica en cada método mutante. Acepta el campo de body `_csrf` (forms
 // sin JS) o el header `X-CSRF-Token` (fetch con JS, cart.js). Nunca muta la
 // sesión antes de esta verificación — spec "Missing token" exige que el
 // carrito quede intacto ante un 403.
+//
+// D6 (design.md, Fase 6b — bug real, no hipotético): este middleware corre
+// ANTES que cualquier router (app.js), pero para `multipart/form-data`
+// Express NUNCA parsea `req.body` en ese punto (ni `express.urlencoded` ni
+// `express.json` lo hacen — multer es quien lo parsea, y multer vive
+// adentro del router de imágenes). Sin este bypass, TODO upload sin JS
+// daría 403 incondicionalmente aunque el `<input type="hidden" name="_csrf">`
+// del form fuera perfectamente válido. Las rutas multipart son responsables
+// de llamar `verifyToken(req)` ELLAS MISMAS después de que multer corrió —
+// este middleware nunca dejó de proteger nada: solo difirió el punto de
+// verificación al único lugar donde el body ya existe.
 function csrfProtection(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
+  if (isMultipart(req)) return next();
 
-  const sessionToken = req.session && req.session.csrfToken;
-  const candidate = (req.body && req.body._csrf) || req.get('X-CSRF-Token');
-
-  if (!sessionToken || !candidate || !safeEqual(sessionToken, candidate)) {
+  if (!verifyToken(req)) {
     return res.status(403).json({ error: 'csrf_invalid' });
   }
 
   return next();
 }
 
-module.exports = { mintToken, ensureToken, csrfProtection };
+module.exports = { mintToken, ensureToken, csrfProtection, verifyToken };

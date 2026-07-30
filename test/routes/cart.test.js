@@ -102,7 +102,11 @@ test('POST /carrito/agregar con variant_id válido crea la línea y persiste ent
   assert.equal(state.lines[0].variantId, Number(variant.id));
 });
 
-test('POST /carrito/agregar cantidad pedida por encima del stock vivo se cappea', async () => {
+// Bug QA (revierte la decisión original de Fase 4): pedir más cantidad que
+// el stock disponible ya NO se cappea en silencio — se rechaza con un
+// mensaje claro y el carrito queda sin mutar. La clienta se enteraba recién
+// en el carrito de que su pedido real no se había cumplido.
+test('POST /carrito/agregar cantidad pedida por encima del stock vivo se rechaza (400), no se cappea', async () => {
   const cookie = await newSession();
   const csrfToken = await getCsrfToken(cookie);
   const { rows } = await pool.query('SELECT id, stock FROM variants WHERE stock > 0 AND stock < 50 ORDER BY stock ASC LIMIT 1');
@@ -113,6 +117,59 @@ test('POST /carrito/agregar cantidad pedida por encima del stock vivo se cappea'
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie, Accept: 'application/json' },
     body: `variant_id=${variant.id}&quantity=${variant.stock + 50}&_csrf=${csrfToken}`,
   });
+  assert.equal(res.status, 400);
   const body = await res.json();
-  assert.equal(body.count, variant.stock);
+  assert.match(body.error, new RegExp(String(variant.stock)));
+
+  const stateRes = await fetch(`${baseUrl}/carrito/estado`, { headers: { cookie, Accept: 'application/json' } });
+  const state = await stateRes.json();
+  assert.equal(state.count, 0, 'el rechazo no debe mutar el carrito');
+});
+
+test('POST /carrito/agregar: pedir de a poco hasta superar el stock también se rechaza (suma lo ya agregado)', async () => {
+  const cookie = await newSession();
+  const csrfToken = await getCsrfToken(cookie);
+  const { rows } = await pool.query('SELECT id, stock FROM variants WHERE stock >= 2 AND stock < 50 ORDER BY stock ASC LIMIT 1');
+  const variant = rows[0];
+
+  await fetch(`${baseUrl}/carrito/agregar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie, Accept: 'application/json' },
+    body: `variant_id=${variant.id}&quantity=${variant.stock}&_csrf=${csrfToken}`,
+  }).then((r) => r.json());
+
+  const res = await fetch(`${baseUrl}/carrito/agregar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie, Accept: 'application/json' },
+    body: `variant_id=${variant.id}&quantity=1&_csrf=${csrfToken}`,
+  });
+  assert.equal(res.status, 400, 'ya está el máximo en el carrito, sumar 1 más debe rechazarse');
+
+  const stateRes = await fetch(`${baseUrl}/carrito/estado`, { headers: { cookie, Accept: 'application/json' } });
+  const state = await stateRes.json();
+  assert.equal(state.count, variant.stock, 'la línea existente no debe alterarse por el intento rechazado');
+});
+
+test('POST /carrito/actualizar: cantidad por encima del stock vivo se rechaza (400), no se cappea', async () => {
+  const cookie = await newSession();
+  const csrfToken = await getCsrfToken(cookie);
+  const { rows } = await pool.query('SELECT id, stock FROM variants WHERE stock > 0 AND stock < 50 ORDER BY stock ASC LIMIT 1');
+  const variant = rows[0];
+
+  await fetch(`${baseUrl}/carrito/agregar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie, Accept: 'application/json' },
+    body: `variant_id=${variant.id}&quantity=1&_csrf=${csrfToken}`,
+  }).then((r) => r.json());
+
+  const res = await fetch(`${baseUrl}/carrito/actualizar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie, Accept: 'application/json' },
+    body: `variant_id=${variant.id}&quantity=${variant.stock + 50}&_csrf=${csrfToken}`,
+  });
+  assert.equal(res.status, 400);
+
+  const stateRes = await fetch(`${baseUrl}/carrito/estado`, { headers: { cookie, Accept: 'application/json' } });
+  const state = await stateRes.json();
+  assert.equal(state.count, 1, 'el rechazo no debe alterar la cantidad ya guardada');
 });

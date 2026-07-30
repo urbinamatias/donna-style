@@ -10,6 +10,7 @@
 const express = require('express');
 const authRouter = require('./auth');
 const categoriesRouter = require('./categories');
+const productImagesRouter = require('./product-images');
 const productsRouter = require('./products');
 const { requireAdmin } = require('../../middleware/auth');
 const productsModel = require('../../models/products');
@@ -28,6 +29,17 @@ router.use('/admin', requireAdmin);
 // login, que nunca pasa por acá).
 router.use('/admin', (req, res, next) => {
   res.locals.adminAuthenticated = true;
+  next();
+});
+
+// Aviso de una sola vez tras un redirect (crear/editar/borrar producto o
+// categoría) — mismo patrón que `cartNotices` de Fase 4: se guarda en
+// sesión antes del redirect, se lee y se borra acá en el siguiente GET,
+// nunca sobrevive a una segunda navegación (QA: "Guardar" no daba ningún
+// aviso de éxito ni error, solo recargaba la página en silencio).
+router.use('/admin', (req, res, next) => {
+  res.locals.adminNotice = req.session.adminNotice || null;
+  delete req.session.adminNotice;
   next();
 });
 
@@ -50,6 +62,13 @@ router.get('/admin', async (req, res, next) => {
 });
 
 router.use(categoriesRouter);
+// Antes de productsRouter (design.md D5): product-images.js define rutas
+// anidadas bajo /admin/productos/:id/imagenes/... — si productsRouter fuera
+// primero no importaría acá (Express matchea por path completo, no por
+// prefijo ambiguo), pero se mantiene el mismo orden declarado que el resto
+// del archivo por legibilidad y para que un futuro comodín en products.js
+// nunca capture estas rutas por accidente.
+router.use(productImagesRouter);
 router.use(productsRouter);
 
 module.exports = router;

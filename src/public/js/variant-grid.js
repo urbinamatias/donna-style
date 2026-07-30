@@ -17,6 +17,8 @@
   var sizesInput = document.getElementById('sizes-input');
   var colorsInput = document.getElementById('colors-input');
   var generateBtn = document.getElementById('generate-grid');
+  var noAxesCheckbox = document.getElementById('no-axes-checkbox');
+  var generateError = document.getElementById('generate-grid-error');
   var existingScript = document.querySelector('[data-existing-variants]');
   var existing = [];
   try {
@@ -81,16 +83,21 @@
     while (grid.firstChild) grid.removeChild(grid.firstChild);
   }
 
+  // QA: con text-xs y sin ancho fijo, el campo de Stock pasaba desapercibido
+  // entre talle/color/SKU — se subió a text-sm con más padding y un ancho
+  // explícito por campo (más chico para el numérico, más ancho para SKU).
   function labeledInput(labelText, type, name, value, dataField) {
     var wrap = document.createElement('label');
-    wrap.className = 'flex flex-col gap-0.5 text-xs';
+    wrap.className = 'flex flex-col gap-1 text-sm font-medium';
     var span = document.createElement('span');
     span.textContent = labelText;
     var input = document.createElement('input');
     input.type = type;
     input.name = name;
     input.value = value;
-    input.className = 'rounded border border-border px-2 py-1';
+    input.className =
+      'rounded border-2 border-borderStrong px-3 py-2 text-base font-normal ' +
+      (dataField === 'stock' ? 'w-24' : 'w-36');
     if (dataField) input.setAttribute('data-field', dataField);
     if (type === 'number') {
       input.min = '0';
@@ -113,12 +120,12 @@
   // drag-and-drop (ver nota arriba).
   function renderGroup(size, sizeOrder, colors, presets, rowIndexRef) {
     var group = document.createElement('div');
-    group.className = 'flex flex-col gap-2 rounded border border-borderStrong bg-bg p-2';
+    group.className = 'flex flex-col gap-3 rounded-lg border-2 border-borderStrong bg-bg p-3';
     group.setAttribute('data-size-group', size === null ? '' : size);
     group.setAttribute('data-size-order', String(sizeOrder));
 
     var header = document.createElement('div');
-    header.className = 'flex items-center justify-between text-sm font-medium';
+    header.className = 'flex items-center justify-between text-base font-semibold';
     var title = document.createElement('span');
     title.textContent = size === null ? 'Sin talle' : 'Talle ' + size;
     header.appendChild(title);
@@ -138,7 +145,7 @@
 
       if (color !== null) {
         var colorLabel = document.createElement('span');
-        colorLabel.className = 'text-xs';
+        colorLabel.className = 'text-sm font-medium';
         colorLabel.textContent = color;
         row.appendChild(colorLabel);
       }
@@ -147,7 +154,7 @@
       row.appendChild(hiddenInput('variants[' + rowIndex + '][color]', color === null ? '' : color));
       row.appendChild(hiddenInput('variants[' + rowIndex + '][size_order]', String(sizeOrder)));
 
-      var stockField = labeledInput('Stock', 'number', 'variants[' + rowIndex + '][stock]', preset.stock || '0', 'stock');
+      var stockField = labeledInput('Cantidad en stock', 'number', 'variants[' + rowIndex + '][stock]', preset.stock || '0', 'stock');
       var skuField = labeledInput('SKU (opcional)', 'text', 'variants[' + rowIndex + '][sku]', preset.sku || '', 'sku');
       row.appendChild(stockField.wrap);
       row.appendChild(skuField.wrap);
@@ -179,7 +186,9 @@
   }
 
   // Estado inicial: si el producto ya tenía variantes, precargar inputs de
-  // talles/colores y la grilla con lo que ya existe.
+  // talles/colores y la grilla con lo que ya existe. Si ya era un SKU único
+  // sin ejes, el checkbox arranca tildado — si no, "Generar grilla" se
+  // bloquearía apenas se toque sin querer (regenerar sin cambiar nada).
   if (existing.length > 0) {
     var sizesSeen = [];
     var colorsSeen = [];
@@ -189,11 +198,23 @@
     });
     sizesInput.value = sizesSeen.join(', ');
     colorsInput.value = colorsSeen.join(', ');
+    if (sizesSeen.length === 0 && colorsSeen.length === 0) noAxesCheckbox.checked = true;
     render(sizesSeen, colorsSeen, presetsFromExisting(existing));
   }
 
+  // QA: generar sin cargar Talle ni Color creaba una fila "Sin talle" sin
+  // que quedara claro si fue a propósito. Ahora requiere al menos un eje,
+  // salvo que se tilde el checkbox de "SKU único" a propósito.
   generateBtn.addEventListener('click', function () {
+    var sizes = parseAxis(sizesInput);
+    var colors = parseAxis(colorsInput);
+    if (sizes.length === 0 && colors.length === 0 && !noAxesCheckbox.checked) {
+      generateError.textContent =
+        'Cargá al menos un talle o un color, o tildá "Este producto no tiene talles ni colores" si es un SKU único.';
+      return;
+    }
+    generateError.textContent = '';
     var presets = readCurrentRows();
-    render(parseAxis(sizesInput), parseAxis(colorsInput), presets);
+    render(sizes, colors, presets);
   });
 })();

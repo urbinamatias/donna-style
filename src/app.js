@@ -10,6 +10,7 @@ const publicRouter = require('./routes/public');
 const categoriesModel = require('./models/categories');
 const siteSettingsModel = require('./models/site-settings');
 const { formatPrice, formatDate, toScriptJson } = require('./services/format');
+const { imageSrc, imageAttrs } = require('./services/image-urls');
 const { ensureToken, csrfProtection } = require('./middleware/csrf');
 const config = require('./config/env');
 const { pool } = require('./db/pool');
@@ -24,6 +25,11 @@ app.set('views', path.join(__dirname, 'views'));
 app.locals.formatPrice = formatPrice;
 app.locals.formatDate = formatDate;
 app.locals.toScriptJson = toScriptJson;
+// Fase 6b: único punto de acceso al esquema de URLs de imágenes desde las
+// vistas (spec "single source of truth") — product-card.ejs, product.ejs y
+// services/cart.js lo consumen, ninguno concatena ancho/.webp a mano.
+app.locals.imageSrc = imageSrc;
+app.locals.imageAttrs = imageAttrs;
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));

@@ -179,8 +179,9 @@ test('products.update: activar sin imágenes se rechaza con un mensaje claro (D9
 
 test('products.update: activar CON al menos una imagen funciona', async () => {
   const product = await makeProduct({ isActive: false });
+  // Fase 6b: la columna se renombró filename -> base_key (migración 007).
   await pool.query(
-    `INSERT INTO product_images (product_id, filename, alt_text) VALUES ($1, 'foto.webp', 'alt')`,
+    `INSERT INTO product_images (product_id, base_key, alt_text) VALUES ($1, 'abc12345', 'alt')`,
     [product.id]
   );
   const updated = await productsModel.update(product.id, { isActive: true });

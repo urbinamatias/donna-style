@@ -14,11 +14,13 @@ Convenciones del proyecto para mantener consistencia entre sesiones. La fuente d
 | Estilos | Tailwind CSS compilado por CLI. Nunca CDN en producción. |
 | JS de cliente | Vanilla, sin framework |
 | Migraciones | Archivos `.sql` numerados en `/db/migrations` + `node db/migrate.js` (runner propio, sin librería de migraciones) |
-| Imágenes | `multer` + `sharp` (a partir de la fase que las necesite) |
+| Imágenes | `multer` (memoryStorage) + `sharp` (Fase 6b — **primer binario nativo real del proyecto**, ver nota abajo) |
 | Sesiones | `express-session` + `connect-pg-simple` (a partir de la fase que las necesite) |
 | Contraseñas admin | `bcryptjs` (puro JS, sin binario nativo — ver nota abajo) |
 
 **`bcryptjs` en vez de `bcrypt` nativo (Fase 6a):** mismo motivo que `sharp` obliga a correr `npm install` desde Windows — un binario nativo compilado en un entorno rompe en el otro. `bcryptjs` es una reimplementación en JS puro del mismo algoritmo, sin paso de compilación, así que no tiene ese problema. Costo de hash: 12+ rounds (§6.2 de `prompt.md`).
+
+**`sharp` (Fase 6b) es la instancia MÁS FUERTE de la regla de §5 hasta ahora:** a diferencia de `bcryptjs`, no existe un equivalente puro-JS realista para `sharp` — libvips es la única forma de cumplir §7 (recorte, redimensionado, WebP, normalización, EXIF strip) con la calidad y el throughput que necesita un panel de carga de fotos. Esto significa que **el binario nativo de `sharp` tiene que compilarse/descargarse en la plataforma donde corre `npm run dev` (Windows)** — instalarlo desde WSL rompería el procesamiento de imágenes al levantar el server en Windows, igual que pasaría con `bcrypt` nativo. `npm install` para esta fase (y cualquiera que la siga) sigue corriendo EXCLUSIVAMENTE desde la terminal de Windows.
 
 ## 2. Convenciones del proyecto
 

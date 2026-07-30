@@ -333,15 +333,89 @@ el diseño ofrecía un split en 3 PRs encadenados.
 Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
 archive, Engram #358-#364.
 
+### Fase 6b — Panel: imágenes de producto ✅ cerrada
+
+`sharp` + `multer` (nativo el primero — primera dependencia con binario
+real desde el scaffold inicial, `npm install` **siempre desde Windows**).
+Pipeline en `src/services/images.js`: recorte centrado 3:4, 3 anchos
+(400/800/1400px) en WebP calidad 82, normalización de nivel, strip de
+EXIF — mismo pipeline para uploads reales y para el seed (sin rama
+legacy). `product_images.filename` pasó a `base_key` (migración 007,
+opaco, sin extensión) — toda URL se arma con
+`src/services/image-urls.js`, único punto de la app que conoce el
+esquema (`product-card.ejs`, `product.ejs` y `cart.js` pasan los tres por
+ahí). Validaciones: lado corto ≥1000px, MIME real (magic bytes, nunca
+extensión/header declarado), 12MB por archivo, JPEG/PNG/WebP/HEIC (HEIC
+porque la dueña saca fotos con iPhone — confirmado que sharp lo soporta
+en esta instalación). Reorder de fotos por botones ↑↓ (nunca drag,
+mismo criterio que las variantes de 6a). Borrar la última foto de un
+producto activo está bloqueado.
+
+**Bug de seguridad real encontrado y corregido en diseño**: el CSRF
+global leía `req.body._csrf`, pero en `multipart/form-data` el body
+recién existe después de que `multer` lo parsea — sin el fix, CUALQUIER
+subida sin JS daría 403 siempre. `csrfProtection` ahora difiere la
+verificación en requests multipart; las rutas de imágenes la hacen ellas
+mismas después de `multer` (`verifyToken(req)`, exportado desde
+`csrf.js`). Con test que fija el bug real (RED confirmado antes del fix).
+
+**QA extensa en dos rondas, con cambios reales de comportamiento**
+(documentados en detalle en Engram, `apply-progress` #371):
+1. **Bug grande**: la sección "Imágenes" vivía anidada DENTRO del
+   `<form>` principal del producto — HTML inválido. El navegador cierra
+   el form principal apenas encuentra el primer `</form>` interno, así
+   que Categorías/Visibilidad/Variantes y el botón "Guardar" de abajo
+   quedaban fuera de cualquier form (no hacían nada al click), y el
+   "Guardar" del texto alternativo mandaba `_csrf` duplicado (array, no
+   string → CSRF inválido). Corregido moviendo Imágenes afuera de
+   `#product-form`, con test de regresión que escanea la página en busca
+   de forms anidados.
+2. **Bug real**: `parseVariantsFromBody` descartaba en silencio la
+   variante de productos de un solo SKU sin talle ni color ("Sin talle")
+   — el filtro exigía talle O color presente.
+3. **Bug real**: el hover de la card apagaba la foto principal sin
+   chequear si había una segunda para reemplazarla — en productos de una
+   sola imagen, la foto "parpadeaba" al pasar el mouse.
+4. **Decisión revertida de Fase 4, a pedido explícito**: pedir más
+   cantidad que el stock disponible ahora se **rechaza** (400, mensaje
+   claro) en `/carrito/agregar` y `/carrito/actualizar`, en vez de
+   cappear en silencio como decidía Fase 4 originalmente.
+5. **Cambio de alcance grande, a pedido explícito (dos veces)**: `/nuevo`
+   y `/editar` eran experiencias distintas porque subir fotos requería
+   que el producto ya existiera. Ahora `POST /admin/productos` (crear)
+   acepta `multipart/form-data` y procesa las fotos en la MISMA
+   transacción que crea el producto — si hay fotos y "Activo" está
+   tildado, el producto queda activo de una. `uploadImagesForProduct()`
+   se extrajo como función compartida entre crear y agregar-fotos-a-un-
+   producto-existente, para no duplicar el pipeline.
+6. Selector de talle/color con una única combinación: **no** se resuelve
+   con texto plano (primer intento, incorrecto) sino mostrando el mismo
+   selector interactivo de siempre — con un solo botón por eje, ya
+   seleccionado, sin opción de elegir otra cosa porque no existe.
+7. "Generar grilla" con Talle y Color vacíos ahora requiere al menos un
+   eje cargado, salvo que se tilde a propósito el checkbox "Este
+   producto no tiene talles ni colores (SKU único)".
+8. Texto alternativo de cada foto ya no tiene su propio botón "Guardar"
+   — se edita junto con el resto del producto (input fuera de
+   `#product-form` en el DOM, pero asociado vía el atributo HTML5
+   `form="product-form"`).
+9. Sistema de avisos de éxito/error (`adminNotice`, mismo patrón que los
+   avisos del carrito) — crear/editar/borrar producto o categoría ahora
+   confirma qué pasó. Editar vuelve al listado; crear también (ya no
+   hace falta ir a "Editar" después).
+10. Stock disponible visible como texto simple en la ficha ("Stock
+    disponible: N"), siempre que hay una variante determinada.
+
+187/187 tests (`node --test`, confirmado por la dueña desde Windows).
+Tamaño de PR con excepción aceptada (`size:exception`) — el diseño
+original ofrecía split en 3 PRs, se mantuvo el mismo criterio de fases
+anteriores.
+
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #367-#373.
+
 ## Fases sin empezar
 
-6b. **Panel: imágenes de producto** — `sharp` + `multer` (ninguna
-   instalada todavía), recorte 3:4, 3 anchos (400/800/1400px) en WebP
-   calidad 82, normalización de nivel, strip de EXIF, validaciones de
-   subida (lado corto ≥1000px, MIME real, tamaño, preview de recorte).
-   Storage en `/public/uploads`, gitignoreado, organizado por id de
-   producto. Es lo que finalmente permite activar los productos creados
-   como borrador en 6a.
 6c. **Panel: stock + pedidos** — tabla de stock editable/filtrable,
    listado/detalle de pedidos, cambio de estado
    (pendiente/confirmado/entregado/cancelado). Acá se decrementa stock

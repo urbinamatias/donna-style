@@ -17,7 +17,15 @@
     ? Math.round((1 - Number(product.base_price) / Number(product.compare_at_price)) * 100)
     : 0;
   const inStockVariants = product.variants.filter((v) => v.stock > 0);
-  const showSelectors = product.availability.hasAnyStock && inStockVariants.length > 1;
+  // QA: antes se ocultaba el selector entero con una sola variante en stock,
+  // así que la clienta no se enteraba de qué talle/color estaba comprando
+  // hasta ver el carrito. La condición correcta es si HAY ejes cargados
+  // (talle y/o color) — con una sola combinación, el mismo selector de
+  // siempre muestra un único botón por eje, ya marcado como seleccionado
+  // (product.decisionTable.default), sin posibilidad de elegir otra cosa
+  // porque no existe ninguna otra — nunca se listan valores que no están
+  // cargados (§4.5 principio de ausencia).
+  const showSelectors = product.availability.hasAnyStock && product.decisionTable.axes.length > 0;
   const defaultVariant = product.variants.find((v) =>
     Object.entries(product.availability.defaultSelection).every(([axis, val]) => v[axis] === val)
   ) || (inStockVariants.length === 1 ? inStockVariants[0] : null);
@@ -30,25 +38,41 @@
 <%- include('../partials/breadcrumbs', { breadcrumbs }) %>
 
 <section class="mx-auto grid max-w-[1400px] gap-8 px-4 py-6 md:grid-cols-2">
+  <%
+    // Fase 6b (spec "Detail srcset"): 400/800/1400 vía el helper compartido.
+    const mainAttrs = primaryImage
+      ? imageAttrs(product.id, primaryImage.base_key, { widths: [400, 800, 1400], sizes: '(min-width: 768px) 50vw, 100vw' })
+      : null;
+  %>
   <div>
     <div class="aspect-[3/4] overflow-hidden rounded-md bg-bg">
-      <% if (primaryImage) { %>
-        <img id="gallery-main-image" src="/img/<%= primaryImage.filename %>" alt="<%= primaryImage.alt_text %>" class="h-full w-full object-cover" fetchpriority="high">
+      <% if (mainAttrs) { %>
+        <img
+          id="gallery-main-image"
+          src="<%= mainAttrs.src %>"
+          srcset="<%= mainAttrs.srcset %>"
+          sizes="<%= mainAttrs.sizes %>"
+          alt="<%= primaryImage.alt_text %>"
+          class="h-full w-full object-cover"
+          fetchpriority="high"
+        >
       <% } %>
     </div>
     <% if (product.images.length > 1) { %>
       <div data-gallery-thumbs class="mt-3 flex gap-2 overflow-x-auto">
         <% product.images.forEach(function (img, i) { %>
+          <% const thumbSrc = imageSrc(product.id, img.base_key, 400); %>
           <button
             type="button"
             data-gallery-thumb
-            data-src="/img/<%= img.filename %>"
+            data-src="<%= imageSrc(product.id, img.base_key, 1400) %>"
+            data-srcset="<%= imageAttrs(product.id, img.base_key, { widths: [400, 800, 1400] }).srcset %>"
             data-alt="<%= img.alt_text %>"
             aria-label="Ver foto <%= i + 1 %> de <%= product.name %>"
             aria-current="<%= img === primaryImage %>"
             class="h-16 w-12 shrink-0 overflow-hidden rounded border <%= img === primaryImage ? 'border-[var(--brand)]' : 'border-border' %>"
           >
-            <img src="/img/<%= img.filename %>" alt="" aria-hidden="true" class="h-full w-full object-cover">
+            <img src="<%= thumbSrc %>" alt="" aria-hidden="true" class="h-full w-full object-cover">
           </button>
         <% }) %>
       </div>
@@ -112,6 +136,10 @@
           </div>
         <% } %>
 
+        <% if (defaultVariant) { %>
+          <p class="mb-4 text-sm text-textMuted">Stock disponible: <%= defaultVariant.stock %></p>
+        <% } %>
+
         <% if (defaultVariant && defaultVariant.stock <= 2) { %>
           <p class="mb-4 text-sm font-medium text-error">
             <%= defaultVariant.stock === 1 ? '¡Es el último!' : `Quedan ${defaultVariant.stock}` %>
@@ -124,6 +152,12 @@
             <input type="number" id="quantity" name="quantity" data-quantity-input min="1" max="<%= defaultVariant.stock %>" value="1" class="w-20 rounded border border-border px-2 py-1 text-sm">
           </div>
         <% } %>
+
+        <%# Bug QA: pedir más cantidad que el stock disponible agregaba el
+          máximo en silencio, sin avisar. Ahora el servidor lo rechaza
+          (400) y cart.js escribe el mensaje acá — nunca innerHTML, solo
+          textContent (CLAUDE.md §3). %>
+        <p data-add-error aria-live="polite" class="mb-3 text-sm font-medium text-error empty:hidden"></p>
 
         <button type="submit" data-add-button class="mb-6 w-full rounded px-4 py-3 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70 md:w-auto" style="background: var(--brand-gradient);">
           Agregar al carrito

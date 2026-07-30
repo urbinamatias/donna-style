@@ -32,6 +32,12 @@
   </nav>
   <% } %>
   <main id="main-content" class="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+    <% if (typeof adminNotice !== 'undefined' && adminNotice) { %>
+      <p
+        role="status"
+        class="mb-4 rounded-lg border-2 px-4 py-3 text-base font-medium <%= adminNotice.type === 'error' ? 'border-error bg-white text-error' : 'border-success bg-white text-success' %>"
+      ><%= adminNotice.message %></p>
+    <% } %>
     <%- include(view, locals) %>
   </main>
   <% if (typeof bodyScripts !== 'undefined') { %>

@@ -97,7 +97,20 @@ router.post('/carrito/agregar', async (req, res, next) => {
       return res.status(400).json({ error: 'Variante no disponible' });
     }
 
+    // Rechaza en vez de cappear en silencio (bug QA: pedir 500 unidades
+    // agregaba igual el máximo disponible sin avisar nada — la clienta no
+    // se enteraba de que su pedido real no se cumplió). La cantidad ya en
+    // el carrito para esta variante cuenta: agregar 3 más a una línea que
+    // ya tiene 8 con stock 10 debe rechazarse igual que pedir 11 de una.
     const quantity = parseQuantity(req.body.quantity, 1);
+    const existingLine = getLines(req).find((l) => l.variantId === variantId);
+    const alreadyInCart = existingLine ? existingLine.quantity : 0;
+    if (alreadyInCart + quantity > liveVariant.stock) {
+      return res.status(400).json({
+        error: `Sólo quedan ${liveVariant.stock} unidades disponibles${alreadyInCart > 0 ? ` (ya tenés ${alreadyInCart} en el carrito)` : ''}.`,
+      });
+    }
+
     const lines = cart.addLine(getLines(req), variantId, quantity, liveVariant.stock);
     setLines(req, lines);
 
@@ -109,7 +122,8 @@ router.post('/carrito/agregar', async (req, res, next) => {
   }
 });
 
-// POST /carrito/actualizar — spec "Update quantity": clamp a stock vivo;
+// POST /carrito/actualizar — spec "Update quantity": rechaza si la cantidad
+// pedida supera el stock vivo (mismo criterio que /agregar, bug QA);
 // variant_id ausente del carrito es 4xx sin crear línea.
 router.post('/carrito/actualizar', async (req, res, next) => {
   try {
@@ -126,6 +140,10 @@ router.post('/carrito/actualizar', async (req, res, next) => {
     const [liveVariant] = await variantsModel.findByIds([variantId]);
     const stock = liveVariant ? liveVariant.stock : 0;
     const quantity = parseQuantity(req.body.quantity, 0);
+
+    if (quantity > stock) {
+      return res.status(400).json({ error: `Sólo quedan ${stock} unidades disponibles.` });
+    }
 
     const lines = cart.setQuantity(currentLines, variantId, quantity, stock);
     setLines(req, lines);

@@ -153,6 +153,9 @@
     if (!isAdd && !isCartForm) return;
 
     event.preventDefault();
+    var errorEl = form.querySelector('[data-add-error]');
+    if (errorEl) errorEl.textContent = '';
+
     var formData = new FormData(form);
     var body = new URLSearchParams();
     formData.forEach(function (value, key) {
@@ -164,7 +167,13 @@
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrfToken },
       body: body.toString(),
     }).then(function (result) {
-      if (!result.ok) return;
+      if (!result.ok) {
+        // Bug QA: pedir más cantidad que el stock disponible se rechaza
+        // (400) en vez de agregar el máximo en silencio — este mensaje es
+        // la única forma en que la clienta se entera.
+        if (errorEl && result.body && result.body.error) errorEl.textContent = result.body.error;
+        return;
+      }
       renderState(result.body);
       // §4.4: el drawer abre solo al agregar, y es la única confirmación
       // (nunca junto a un toast).

@@ -9,9 +9,14 @@
   thumbs.forEach((thumb) => {
     thumb.addEventListener('click', () => {
       const src = thumb.getAttribute('data-src');
+      const srcset = thumb.getAttribute('data-srcset');
       const alt = thumb.getAttribute('data-alt');
       if (!src) return;
       mainImage.src = src;
+      // Fase 6b (spec "Detail srcset" — mandatorio): al cambiar de miniatura
+      // la imagen principal debe seguir exponiendo su srcset completo, no
+      // solo el `src` de fallback.
+      if (srcset) mainImage.srcset = srcset;
       mainImage.alt = alt || '';
 
       thumbs.forEach((t) => {

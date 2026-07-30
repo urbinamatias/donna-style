@@ -5,6 +5,8 @@
 // cliente — eso siempre se re-deriva acá a partir de `liveRows` (§CLAUDE.md
 // "servicio único, sin duplicar entre card/ficha/carrito").
 
+const { imageSrc } = require('./image-urls');
+
 function clampQuantity(quantity, stock) {
   const qty = Number.isFinite(quantity) ? Math.trunc(quantity) : 0;
   if (qty <= 0) return 0;
@@ -108,7 +110,11 @@ function summarize(lines, liveRows) {
       price,
       lineTotal,
       stock: row.stock,
-      image: row.image_filename ? `/img/${row.image_filename}` : null,
+      // Fase 6b (spec "All image URL call sites migrated to the shared
+      // helper"): 400w fijo, sin srcset — el thumbnail del carrito nunca
+      // renderiza más grande que ~80px CSS x 3 DPR (D10 de design.md), así
+      // que un srcset no puede elegir un candidato distinto.
+      image: row.image_base_key ? imageSrc(row.product_id, row.image_base_key, 400) : null,
     });
   }
 

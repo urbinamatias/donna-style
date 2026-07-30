@@ -79,6 +79,7 @@ router.post('/admin/categorias', async (req, res, next) => {
     }
 
     await categoriesModel.create({ name, slug, parentId, sortOrder });
+    req.session.adminNotice = { type: 'success', message: 'Categoría creada.' };
     return res.redirect(303, '/admin/categorias');
   } catch (err) {
     if (isDepthTriggerError(err) || isUniqueSlugError(err)) {
@@ -125,6 +126,7 @@ router.post('/admin/categorias/:id', async (req, res, next) => {
       parentId,
       sortOrder,
     });
+    req.session.adminNotice = { type: 'success', message: 'Categoría actualizada.' };
     return res.redirect(303, '/admin/categorias');
   } catch (err) {
     if (isDepthTriggerError(err) || isUniqueSlugError(err)) {
@@ -156,6 +158,7 @@ router.post('/admin/categorias/:id/eliminar', async (req, res, next) => {
     }
 
     await categoriesModel.remove(req.params.id);
+    req.session.adminNotice = { type: 'success', message: 'Categoría eliminada.' };
     return res.redirect(303, '/admin/categorias');
   } catch (err) {
     next(err);

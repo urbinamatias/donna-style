@@ -9,16 +9,152 @@
     <p class="rounded border-2 border-error bg-white px-4 py-3 text-base text-error"><%= error %></p>
   <% } %>
 
-  <% if (product && product.id && !product.is_active) { %>
+  <% if (product && product.id && !product.is_active && (!product.images || product.images.length === 0)) { %>
     <p class="rounded border-2 border-borderStrong bg-bg px-4 py-3 text-base text-textMuted">
-      Borrador — falta al menos una imagen para poder activarlo (la carga de fotos llega en la próxima etapa del panel).
+      Borrador — falta al menos una imagen para poder activarlo. Subí una foto en la sección "Imágenes" de abajo.
     </p>
+  <% } %>
+
+  <% if (product && product.id) { %>
+    <%# Imágenes (Fase 6b, spec product-images). Vive AFUERA de
+      #product-form a propósito: sus forms (subida, alt-text, principal,
+      reorder, borrar) son acciones independientes de un solo POST cada
+      una, nada que ver con los campos del producto. Meterla adentro del
+      form principal era HTML inválido (forms anidados) — el navegador
+      recupera el error cerrando #product-form apenas encuentra el cierre
+      del primer form interno, así que TODO lo que venía después (Categorías,
+      Visibilidad, Variantes, el botón Guardar de abajo) terminaba fuera de
+      cualquier form y dejaba de funcionar (bug real de QA, no hipotético).
+      Solo en edición: la creación siempre redirige a /editar primero (6a),
+      así que product_id siempre existe acá — nunca hay que soportar
+      upload en el alta. %>
+    <section class="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-4">
+      <h2 class="text-lg font-semibold border-b border-border pb-2">Imágenes</h2>
+
+      <% if (product.images && product.images.length > 0) { %>
+        <ul class="flex flex-col gap-3">
+          <% product.images.forEach(function (img, i) { %>
+            <li class="flex flex-col gap-2 rounded border border-border p-3 sm:flex-row sm:items-center">
+              <img
+                src="<%= imageSrc(product.id, img.base_key, 400) %>"
+                alt="<%= img.alt_text %>"
+                class="h-24 w-18 shrink-0 rounded object-cover"
+              >
+              <div class="flex flex-1 flex-col gap-2">
+                <%# Sin form ni botón propio a propósito (QA: "un solo Guardar
+                  para todo el producto"). El input vive acá, junto a la
+                  foto, pero se asocia al form principal vía `form=
+                  "product-form"` — el atributo HTML5 hace que el navegador
+                  lo incluya en ESE submit sin importar dónde esté en el DOM,
+                  sin volver a anidar forms. %>
+                <label class="flex-1 text-sm">
+                  Texto alternativo
+                  <span class="block text-xs font-normal text-textMuted">Lo que describe la foto para lectores de pantalla y buscadores — no se ve en la página.</span>
+                  <input type="text" name="image_alt[<%= img.id %>]" value="<%= img.alt_text %>" required
+                         form="product-form" class="w-full rounded border border-border px-2 py-1 text-sm">
+                </label>
+
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                  <% if (img.is_primary) { %>
+                    <span class="rounded bg-text px-2 py-1 text-xs font-semibold text-bg">Principal</span>
+                  <% } else { %>
+                    <form method="POST" action="/admin/productos/<%= product.id %>/imagenes/<%= img.id %>/primaria">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="rounded border border-border px-2 py-1 text-xs">Hacer principal</button>
+                    </form>
+                  <% } %>
+
+                  <form method="POST" action="/admin/productos/<%= product.id %>/imagenes/<%= img.id %>/mover">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="direction" value="up">
+                    <button type="submit" <%= i === 0 ? 'disabled' : '' %>
+                            class="rounded border border-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="Subir imagen">↑</button>
+                  </form>
+                  <form method="POST" action="/admin/productos/<%= product.id %>/imagenes/<%= img.id %>/mover">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="direction" value="down">
+                    <button type="submit" <%= i === product.images.length - 1 ? 'disabled' : '' %>
+                            class="rounded border border-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="Bajar imagen">↓</button>
+                  </form>
+
+                  <form method="POST" action="/admin/productos/<%= product.id %>/imagenes/<%= img.id %>/eliminar"
+                        onsubmit="return confirm('¿Borrar esta imagen? Esta acción no se puede deshacer.');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="rounded border border-error px-2 py-1 text-xs text-error">
+                      Borrar
+                    </button>
+                  </form>
+                </div>
+                <% if (img.is_primary && product.is_active && product.images.length === 1) { %>
+                  <p class="text-xs text-textMuted">
+                    Es la única imagen de un producto activo — para borrarla, desactivá el producto primero (desmarcá "Activo" y guardá).
+                  </p>
+                <% } %>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      <% } %>
+
+      <div class="flex flex-col gap-2">
+        <p class="text-sm text-textMuted">
+          Subí hasta 6 fotos por vez. Formatos aceptados: JPEG, PNG, WebP o HEIC. Tamaño máximo 12 MB por foto,
+          lado más corto de al menos 1000px.
+        </p>
+        <form method="POST" action="/admin/productos/<%= product.id %>/imagenes" enctype="multipart/form-data"
+              id="image-upload-form" data-image-upload-form>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="flex flex-col gap-2">
+            <label class="flex flex-col gap-1 text-sm">
+              Fotos
+              <input type="file" name="images" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                     capture="environment" multiple data-image-upload-input class="text-sm">
+            </label>
+            <label class="flex flex-col gap-1 text-sm">
+              Texto alternativo (opcional — si lo dejás vacío se usa el nombre del producto)
+              <input type="text" name="alt_text" data-image-upload-alt
+                     value="<%= product.name %>" class="rounded border border-border px-2 py-1 text-sm">
+            </label>
+            <div data-image-upload-previews class="flex flex-wrap gap-2"></div>
+            <button type="submit" class="w-fit rounded-lg border-2 border-borderStrong px-4 py-2 text-sm font-medium">
+              Subir fotos
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
   <% } %>
 
   <form method="POST"
         action="<%= product && product.id ? '/admin/productos/' + product.id : '/admin/productos' %>"
+        <%# multipart SOLO para crear (QA: subir fotos ya en "Nuevo", no
+          recién en "Editar"): editar sigue siendo urlencoded normal, sus
+          fotos se manejan aparte en la sección de arriba. %>
+        <%= (!product || !product.id) ? 'enctype="multipart/form-data"' : '' %>
         class="flex flex-col gap-6" id="product-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <% if (!product || !product.id) { %>
+      <section class="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-4">
+        <h2 class="text-lg font-semibold border-b border-border pb-2">Fotos <span class="text-sm font-normal text-textMuted">(opcional al crear — sin fotos, el producto queda en borrador)</span></h2>
+        <p class="text-sm text-textMuted">
+          Elegí fotos de la galería o sacalas en el momento. Formatos aceptados: JPEG, PNG, WebP o HEIC. Tamaño
+          máximo 12 MB por foto, lado más corto de al menos 1000px. Se suben junto con el resto al tocar "Guardar".
+        </p>
+        <label class="flex flex-col gap-1 text-sm">
+          Fotos
+          <input type="file" name="images" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                 capture="environment" multiple data-image-upload-input class="text-sm">
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          Texto alternativo (opcional — si lo dejás vacío se usa el nombre del producto)
+          <input type="text" name="alt_text" data-image-upload-alt class="rounded border border-border px-2 py-1 text-sm">
+        </label>
+        <div data-image-upload-previews class="flex flex-wrap gap-2"></div>
+      </section>
+    <% } %>
 
     <section class="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-4">
       <h2 class="text-lg font-semibold border-b border-border pb-2">Datos generales</h2>
@@ -115,9 +251,23 @@
         Colores
         <input type="text" id="colors-input" placeholder="Negro, Blanco" class="rounded border border-border px-3 py-2 text-base">
       </label>
+
+      <%# QA: "Generar grilla" con Talle y Color vacíos generaba una única
+        fila "Sin talle" sin que quedara claro si era a propósito o un click
+        accidental. Ahora hace falta cargar al menos uno de los dos, salvo
+        que se tilde este checkbox — un producto sin ninguna variación
+        (accesorios, por ejemplo) sigue siendo un caso válido, solo que
+        ahora es una decisión explícita, no el resultado de dejar todo
+        vacío. %>
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" id="no-axes-checkbox">
+        Este producto no tiene talles ni colores (SKU único)
+      </label>
+
       <button type="button" id="generate-grid" class="w-fit rounded-lg border-2 border-borderStrong px-4 py-2 text-base font-medium">
         Generar grilla
       </button>
+      <p id="generate-grid-error" aria-live="polite" class="text-sm font-medium text-error empty:hidden"></p>
 
       <div id="variant-grid" data-csrf="<%= csrfToken %>" class="flex flex-col gap-2"></div>
 
@@ -144,3 +294,4 @@
 </div>
 
 <script src="/js/variant-grid.js" defer></script>
+<script src="/js/image-upload.js" defer></script>

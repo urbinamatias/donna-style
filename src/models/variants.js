@@ -50,11 +50,11 @@ async function findByIds(ids) {
        v.id, v.product_id, v.size, v.color, v.stock,
        COALESCE(v.price_override, p.base_price) AS price,
        p.name AS product_name, p.slug AS product_slug,
-       img.filename AS image_filename
+       img.base_key AS image_base_key
      FROM variants v
      JOIN products p ON p.id = v.product_id
      LEFT JOIN LATERAL (
-       SELECT filename FROM product_images
+       SELECT base_key FROM product_images
        WHERE product_id = v.product_id
        ORDER BY is_primary DESC, sort_order ASC
        LIMIT 1

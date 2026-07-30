@@ -15,7 +15,10 @@
     ? Math.round((1 - Number(product.base_price) / Number(product.compare_at_price)) * 100)
     : 0;
   const inStockVariants = product.variants.filter((v) => v.stock > 0);
-  const showSelectors = product.availability.hasAnyStock && inStockVariants.length > 1;
+  // QA (mismo criterio que la ficha): mostrar el selector si hay ejes
+  // cargados, no si hay más de una variante — con una sola combinación se
+  // ve un único botón ya seleccionado por eje, nunca oculto.
+  const showSelectors = product.availability.hasAnyStock && product.decisionTable.axes.length > 0;
   const defaultVariant = product.variants.find((v) =>
     Object.entries(product.availability.defaultSelection).every(([axis, val]) => v[axis] === val)
   );
@@ -24,18 +27,33 @@
     : product.base_price;
 %>
 <article class="group/card flex h-full flex-col overflow-hidden rounded-md border border-border bg-surface">
-  <a href="/productos/<%= product.slug %>" class="card-media relative block aspect-[3/4] overflow-hidden bg-bg">
-    <% if (primaryImage) { %>
+  <a href="/productos/<%= product.slug %>"
+     class="card-media relative block aspect-[3/4] overflow-hidden bg-bg <%= secondaryImage ? 'card-media--has-secondary' : '' %>">
+    <%
+      // Fase 6b (spec "Card srcset"): 400/800 vía el único helper compartido
+      // (app.locals.imageAttrs) — nunca se concatena ancho/.webp acá.
+      const primaryAttrs = primaryImage
+        ? imageAttrs(product.id, primaryImage.base_key, { widths: [400, 800], sizes: '(min-width: 1024px) 25vw, 50vw' })
+        : null;
+      const secondaryAttrs = secondaryImage
+        ? imageAttrs(product.id, secondaryImage.base_key, { widths: [400, 800], sizes: '(min-width: 1024px) 25vw, 50vw' })
+        : null;
+    %>
+    <% if (primaryAttrs) { %>
       <img
-        src="/img/<%= primaryImage.filename %>"
+        src="<%= primaryAttrs.src %>"
+        srcset="<%= primaryAttrs.srcset %>"
+        sizes="<%= primaryAttrs.sizes %>"
         alt="<%= primaryImage.alt_text %>"
         loading="lazy"
         class="card-media-primary absolute inset-0 h-full w-full object-cover opacity-100 transition-opacity duration-150"
       >
     <% } %>
-    <% if (secondaryImage) { %>
+    <% if (secondaryAttrs) { %>
       <img
-        src="/img/<%= secondaryImage.filename %>"
+        src="<%= secondaryAttrs.src %>"
+        srcset="<%= secondaryAttrs.srcset %>"
+        sizes="<%= secondaryAttrs.sizes %>"
         alt=""
         aria-hidden="true"
         loading="lazy"
@@ -105,7 +123,8 @@
           </div>
         <% } %>
 
-        <div class="mt-auto pt-2">
+        <div class="mt-auto flex flex-col gap-1 pt-2">
+          <p data-add-error aria-live="polite" class="text-xs font-medium text-error empty:hidden"></p>
           <button type="submit" data-add-button class="w-full rounded px-3 py-2 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70" style="background: var(--brand-gradient);">
             Agregar al carrito
           </button>

@@ -9,10 +9,23 @@
 // está mal. Números usan el propio valor como size_order.
 const SIZE_ORDER = { XS: 10, S: 20, M: 30, L: 40, XL: 50, XXL: 60, XXXL: 70 };
 
-// Imágenes reales quedan para la Fase 6/7 (upload real con sharp). Acá solo
-// se referencian nombres de placeholder — la Fase 2 no procesa imágenes.
+// Fase 6b (spec seed-data "Seeded images use the same pipeline"): cada
+// fixture apunta a un JPEG fuente real bajo src/public/img/placeholders/
+// (mismo lugar donde vivían antes de esta fase) — `db/seed.js` lee ese
+// archivo y lo corre por `images.processImage`, EL MISMO pipeline sharp
+// que un upload real de la dueña. Cero rama legacy: acá no se guarda un
+// `filename` servible directo, solo la ruta fuente a procesar.
+const path = require('node:path');
+
+const PLACEHOLDERS_DIR = path.join(__dirname, '..', '..', 'src', 'public', 'img', 'placeholders');
+
 function placeholderImage(slug, n, alt, isPrimary) {
-  return { filename: `placeholders/${slug}-${n}.jpg`, altText: alt, sortOrder: n, isPrimary };
+  return {
+    sourcePath: path.join(PLACEHOLDERS_DIR, `${slug}-${n}.jpg`),
+    altText: alt,
+    sortOrder: n,
+    isPrimary,
+  };
 }
 
 module.exports = [

@@ -69,14 +69,18 @@
 
 /* Card de producto (§5.5): cambio a la segunda foto en hover, solo en
    desktop con mouse real (§4.4 — todo hover va dentro de
-   @media (hover: hover), si no el estado queda pegado en táctil). */
+   @media (hover: hover), si no el estado queda pegado en táctil).
+   `.card-media--has-secondary` (Fase 6b, bug QA): sin esta guarda, un
+   producto con UNA sola foto apaga su única imagen al pasar el mouse
+   (revela el fondo) y no tiene una segunda para mostrar en su lugar — se ve
+   como un parpadeo. Solo se anima si de verdad hay una foto de reemplazo. */
 @media (hover: hover) {
-  .card-media:hover .card-media-secondary,
-  .card-media:focus-within .card-media-secondary {
+  .card-media--has-secondary:hover .card-media-secondary,
+  .card-media--has-secondary:focus-within .card-media-secondary {
     opacity: 1;
   }
-  .card-media:hover .card-media-primary,
-  .card-media:focus-within .card-media-primary {
+  .card-media--has-secondary:hover .card-media-primary,
+  .card-media--has-secondary:focus-within .card-media-primary {
     opacity: 0;
   }
 }
