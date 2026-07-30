@@ -63,9 +63,13 @@ router.get('/admin/categorias/nueva', async (req, res, next) => {
 router.post('/admin/categorias', async (req, res, next) => {
   try {
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
-    const slug = req.body.slug ? slugify(req.body.slug) : slugify(name);
+    // Slug 100% automático (fase 6c QA: "a la dueña no le interesa eso") —
+    // se deriva del nombre, nunca se pide ni se lee del body.
+    const slug = slugify(name);
     const parentId = req.body.parent_id ? Number(req.body.parent_id) : null;
-    const sortOrder = req.body.sort_order ? Number(req.body.sort_order) : 0;
+    // Siempre al final de sus hermanas (fase 6c QA) — nunca un input manual
+    // en el alta; reordenar sigue siendo posible después, desde Editar.
+    const sortOrder = await categoriesModel.nextSortOrder(parentId);
 
     if (!name || !slug) {
       const parents = await loadTreeForForm();
@@ -116,13 +120,14 @@ router.get('/admin/categorias/:id/editar', async (req, res, next) => {
 router.post('/admin/categorias/:id', async (req, res, next) => {
   try {
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
-    const slug = typeof req.body.slug === 'string' && req.body.slug.trim() ? slugify(req.body.slug) : undefined;
+    // El slug nunca se re-deriva del nombre al editar (mismo criterio que
+    // productos, CLAUDE.md: renombrar no debe romper un link ya compartido)
+    // y ya no hay input para tocarlo a mano — queda congelado desde el alta.
     const parentId = req.body.parent_id ? Number(req.body.parent_id) : null;
     const sortOrder = req.body.sort_order ? Number(req.body.sort_order) : undefined;
 
     await categoriesModel.update(req.params.id, {
       name: name || undefined,
-      slug,
       parentId,
       sortOrder,
     });

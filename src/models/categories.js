@@ -21,6 +21,19 @@ async function findAll() {
   return rows;
 }
 
+// Próximo lugar en el orden, siempre al final de sus hermanas (fase 6c QA:
+// una categoría nueva se creaba con `sort_order` 0 por defecto — como
+// `findAll`/`findMenuTree` ordenan ASC, terminaba adelante de categorías ya
+// existentes en vez de al final). Alcance por `parent_id`: el orden es entre
+// hermanas del mismo nivel, no global.
+async function nextSortOrder(parentId) {
+  const { rows } = await db.query(
+    'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM categories WHERE parent_id IS NOT DISTINCT FROM $1',
+    [parentId]
+  );
+  return rows[0].next;
+}
+
 async function findChildren(parentId) {
   const { rows } = await db.query(
     'SELECT * FROM categories WHERE parent_id = $1 ORDER BY sort_order, name',
@@ -123,6 +136,7 @@ async function remove(id) {
 
 module.exports = {
   create,
+  nextSortOrder,
   findBySlug,
   findById,
   findAll,

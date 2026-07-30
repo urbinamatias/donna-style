@@ -20,13 +20,6 @@
     </label>
 
     <label class="flex flex-col gap-1 text-base">
-      Slug
-      <span class="text-sm text-textMuted">Opcional — si lo dejás vacío se genera del nombre.</span>
-      <input type="text" name="slug" value="<%= category && category.slug ? category.slug : '' %>"
-             class="rounded border border-border px-3 py-2 text-base">
-    </label>
-
-    <label class="flex flex-col gap-1 text-base">
       Categoría padre
       <span class="text-sm text-textMuted">Opcional — dejar vacío para categoría de primer nivel.</span>
       <select name="parent_id" class="rounded border border-border px-3 py-2 text-base">
@@ -42,11 +35,16 @@
       </select>
     </label>
 
-    <label class="flex flex-col gap-1 text-base">
-      Orden
-      <input type="number" name="sort_order" value="<%= category && category.sort_order != null ? category.sort_order : 0 %>"
-             class="rounded border border-border px-3 py-2 text-base">
-    </label>
+    <%# Orden: solo al editar (fase 6c QA) — una categoría nueva siempre se
+      agrega al final de sus hermanas, sin pedirle un número a la dueña; acá
+      puede reordenarla después si hace falta. %>
+    <% if (category && category.id) { %>
+      <label class="flex flex-col gap-1 text-base">
+        Orden
+        <input type="number" name="sort_order" value="<%= category.sort_order != null ? category.sort_order : 0 %>"
+               class="rounded border border-border px-3 py-2 text-base">
+      </label>
+    <% } %>
 
     <button type="submit" class="rounded-lg bg-brand px-5 py-3 text-base font-semibold text-white">Guardar</button>
   </form>

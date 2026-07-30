@@ -82,12 +82,13 @@ test('POST /admin/categorias sin CSRF es 403 y no crea nada', async () => {
 
 test('crear categoría raíz, re-parentar a nivel 2, e intentar un tercer nivel es rechazado con mensaje legible', async () => {
   const { cookie, csrfToken } = await loginSession();
+  const stamp = Date.now();
 
   const rootRes = await fetch(`${baseUrl}/admin/categorias`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
     redirect: 'manual',
-    body: `name=Root Test&slug=root-test-${Date.now()}&_csrf=${csrfToken}`,
+    body: `name=${encodeURIComponent(`Root Test ${stamp}`)}&_csrf=${csrfToken}`,
   });
   await rootRes.text();
   assert.equal(rootRes.status, 303);
@@ -100,7 +101,7 @@ test('crear categoría raíz, re-parentar a nivel 2, e intentar un tercer nivel 
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
     redirect: 'manual',
-    body: `name=Child Test&slug=child-test-${Date.now()}&parent_id=${rootId}&_csrf=${csrfToken}`,
+    body: `name=${encodeURIComponent(`Child Test ${stamp}`)}&parent_id=${rootId}&_csrf=${csrfToken}`,
   });
   await childRes.text();
   assert.equal(childRes.status, 303);
@@ -112,11 +113,40 @@ test('crear categoría raíz, re-parentar a nivel 2, e intentar un tercer nivel 
   const grandchildRes = await fetch(`${baseUrl}/admin/categorias`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
-    body: `name=Grandchild&slug=grandchild-${Date.now()}&parent_id=${childId}&_csrf=${csrfToken}`,
+    body: `name=${encodeURIComponent(`Grandchild ${stamp}`)}&parent_id=${childId}&_csrf=${csrfToken}`,
   });
   const body = await grandchildRes.text();
   assert.equal(grandchildRes.status, 400);
   assert.match(body, /2 niveles/);
+});
+
+// QA fase 6c: el slug se generaba solo cuando se dejaba vacío, pero se podía
+// cargar a mano — y una categoría nueva arrancaba en sort_order 0, adelante
+// de las existentes en vez de al final. Ambos comportamientos se sacaron por
+// pedido explícito: la dueña nunca elige el slug, y el orden es siempre al
+// final de sus hermanas.
+test('crear categoría: el slug se deriva del nombre (aunque se mande uno distinto) y queda al final del orden', async () => {
+  const { cookie, csrfToken } = await loginSession();
+  const stamp = Date.now();
+
+  const { rows: existing } = await pool.query(
+    'SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM categories WHERE parent_id IS NULL'
+  );
+  const maxBefore = Number(existing[0].max_order);
+
+  const res = await fetch(`${baseUrl}/admin/categorias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+    redirect: 'manual',
+    body: `name=${encodeURIComponent(`Auto Slug ${stamp}`)}&slug=un-slug-totalmente-distinto&sort_order=0&_csrf=${csrfToken}`,
+  });
+  await res.text();
+  assert.equal(res.status, 303);
+
+  const { rows } = await pool.query('SELECT id, slug, sort_order FROM categories ORDER BY id DESC LIMIT 1');
+  createdCategoryIds.push(rows[0].id);
+  assert.match(rows[0].slug, /^auto-slug-\d+$/, 'el slug enviado a mano debe ignorarse, se deriva siempre del nombre');
+  assert.equal(Number(rows[0].sort_order), maxBefore + 1, 'debe quedar al final de sus hermanas, ignorando el sort_order enviado a mano');
 });
 
 test('borrar categoría con productos asignados es bloqueado', async () => {
