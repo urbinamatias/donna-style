@@ -27,19 +27,25 @@
     return size + '|' + color;
   }
 
+  // Bug real de QA: esto filtraba TALLE y COLOR entre sí, simétricamente —
+  // con solo S/Rojo y L/Azul en stock, elegir Rojo hacía desaparecer L del
+  // todo (nunca coexistió con Rojo), y elegir S hacía desaparecer Azul. La
+  // clienta quedaba encerrada en la primera combinación sin poder llegar a
+  // la otra. La regla real (prompt.md §3.2, "al elegir un valor del primer
+  // eje, el segundo eje se recalcula") es ASIMÉTRICA: talle es siempre el
+  // eje maestro, se muestra completo, nunca se filtra por el color
+  // elegido — el que se recalcula es color, según el talle actual.
   function availableValuesFor(table, selection, axis) {
-    var candidates = (table.values[axis] || []).slice();
-    table.axes.forEach(function (otherAxis) {
-      if (otherAxis === axis) return;
-      var otherVal = selection[otherAxis];
-      if (!otherVal) return;
-      var restricted =
-        (table.matrix[otherAxis] && table.matrix[otherAxis][otherVal] && table.matrix[otherAxis][otherVal][axis]) || [];
-      candidates = candidates.filter(function (v) {
-        return restricted.indexOf(v) !== -1;
-      });
-    });
-    return candidates;
+    if (axis === 'size') {
+      return (table.values.size || []).slice();
+    }
+    if (table.axes.indexOf('size') === -1) {
+      return (table.values[axis] || []).slice();
+    }
+    var sizeVal = selection.size;
+    if (!sizeVal) return (table.values[axis] || []).slice();
+    var restricted = (table.matrix.size && table.matrix.size[sizeVal] && table.matrix.size[sizeVal][axis]) || [];
+    return restricted;
   }
 
   function setUp(widget) {

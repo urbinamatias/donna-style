@@ -189,7 +189,9 @@
       <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide">Compartir</h2>
       <div class="flex flex-wrap items-center gap-3 text-sm">
         <a href="https://wa.me/?text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener noreferrer" class="rounded border border-border px-3 py-2 hover:border-border-strong">WhatsApp</a>
-        <a href="https://instagram.com/<%= storeConfig.INSTAGRAM.replace('@', '') %>" target="_blank" rel="noopener noreferrer" class="rounded border border-border px-3 py-2 hover:border-border-strong">Instagram</a>
+        <% if (storeConfig.INSTAGRAM) { %>
+          <a href="https://instagram.com/<%= storeConfig.INSTAGRAM.replace('@', '') %>" target="_blank" rel="noopener noreferrer" class="rounded border border-border px-3 py-2 hover:border-border-strong">Instagram</a>
+        <% } %>
         <button type="button" data-copy-link data-url="<%= productUrl %>" class="rounded border border-border px-3 py-2 hover:border-border-strong">Copiar link</button>
         <span data-copy-link-status class="text-xs text-textMuted" aria-live="polite"></span>
       </div>

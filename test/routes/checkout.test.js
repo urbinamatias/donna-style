@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 
 const { pool } = require('../../src/db/pool');
 const app = require('../../src/app');
+const siteSettingsModel = require('../../src/models/site-settings');
 
 let server;
 let baseUrl;
@@ -215,4 +216,30 @@ test('GET /pedido/:token: accesible sin sesión, con noindex, y con los datos de
   assert.equal(orderRes.status, 200);
   const orderBody = await orderRes.text();
   assert.match(orderBody, /noindex/);
+});
+
+// RED (tasks.md 3.2, design.md D-C): el link de wa.me en la confirmación de
+// checkout DEBE seguir el valor del panel (site_settings.whatsapp_admin),
+// no `config.WHATSAPP_ADMIN` (.env) directo — sin reiniciar el proceso.
+test('POST /checkout: el link wa.me sigue el valor del PANEL (site_settings), no el de .env, sin reiniciar el server', async () => {
+  const panelNumber = '5493519998877';
+  await siteSettingsModel.set('whatsapp_admin', panelNumber);
+
+  try {
+    const cookie = await newSession();
+    const csrfToken = await getCsrfToken(cookie);
+    const { rows } = await pool.query('SELECT id FROM variants WHERE stock > 0 LIMIT 1');
+    await addToCart(cookie, csrfToken, rows[0].id);
+
+    const res = await fetch(`${baseUrl}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+      body: `_csrf=${csrfToken}`,
+    });
+    assert.equal(res.status, 200);
+    const body = await res.text();
+    assert.match(body, new RegExp(`wa\\.me/${panelNumber}`));
+  } finally {
+    await pool.query(`DELETE FROM site_settings WHERE key = 'whatsapp_admin'`);
+  }
 });

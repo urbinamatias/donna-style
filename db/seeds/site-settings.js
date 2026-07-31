@@ -21,4 +21,13 @@ module.exports = {
   // categorías. Si esta clave no existiera o quedara vacía, la barra no se
   // renderiza (§4.5, principio de ausencia).
   announcement_bar_text: `Envíos a todo el país • 6 cuotas sin interés • 30% off abonando con efectivo/transferencia bancaria`,
+
+  // Fase 6d (design.md D-C): los 4 datos de contacto que resuelve
+  // `store-config.js` — sembrados acá para poder probar el panel completo
+  // (Configuración) sin depender de `.env`. Mismos valores reales del
+  // cliente que ya viven como default en `config/env.js` (§0 de prompt.md).
+  whatsapp_admin: '5493517505083',
+  instagram: '@donna_styleok',
+  email_contacto: 'yesi2682@hotmail.com',
+  cuit: '27-29456245-7',
 };

@@ -11,8 +11,9 @@ const categoriesModel = require('./models/categories');
 const siteSettingsModel = require('./models/site-settings');
 const { formatPrice, formatDate, toScriptJson } = require('./services/format');
 const { statusBadge, transitionButtonClass } = require('./services/orders-status');
-const { imageSrc, imageAttrs } = require('./services/image-urls');
+const { imageSrc, imageAttrs, slideImageAttrs } = require('./services/image-urls');
 const { ensureToken, csrfProtection } = require('./middleware/csrf');
+const storeConfig = require('./services/store-config');
 const config = require('./config/env');
 const { pool } = require('./db/pool');
 
@@ -36,6 +37,9 @@ app.locals.transitionButtonClass = transitionButtonClass;
 // services/cart.js lo consumen, ninguno concatena ancho/.webp a mano.
 app.locals.imageSrc = imageSrc;
 app.locals.imageAttrs = imageAttrs;
+// Fase 6d: mismo criterio — único punto de acceso al esquema de URLs de
+// slides del carrusel, ninguna vista concatena `-d`/`-m`/ancho a mano.
+app.locals.slideImageAttrs = slideImageAttrs;
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
@@ -83,17 +87,22 @@ app.use((req, res, next) => {
 // al catálogo: movido acá (antes vivía solo en public.js) porque cart.js
 // también renderiza layouts/main y necesita los mismos locals — una sola
 // carga por request, nunca duplicada entre routers.
+// Fase 6d (design.md D-C): `siteSettingsModel.getAll()` reemplaza el
+// `get('announcement_bar_text')` puntual — MISMO round trip a la DB
+// devuelve el anuncio Y los 4 datos de contacto del panel. `merge()` arma
+// `res.locals.storeConfig` con la WHITELIST explícita (nunca más el objeto
+// `config` completo, que filtraba SESSION_SECRET/DATABASE_URL a las
+// vistas). Sin caché a propósito: un cambio en el panel debe verse sin
+// reiniciar el proceso (spec "Panel value wins").
 app.use(async (req, res, next) => {
   try {
-    const [menuTree, announcementText] = await Promise.all([
-      categoriesModel.findMenuTree(),
-      siteSettingsModel.get('announcement_bar_text'),
-    ]);
+    const [menuTree, settings] = await Promise.all([categoriesModel.findMenuTree(), siteSettingsModel.getAll()]);
     res.locals.menuTree = menuTree;
+    const announcementText = settings.announcement_bar_text;
     res.locals.announcementItems = announcementText
       ? announcementText.split('•').map((s) => s.trim()).filter(Boolean)
       : [];
-    res.locals.storeConfig = config;
+    res.locals.storeConfig = storeConfig.merge(config, settings);
     next();
   } catch (err) {
     next(err);
@@ -115,6 +124,11 @@ app.use(publicRouter);
 
 // Manejador de errores genérico: nunca deja escapar un stack trace a la
 // clienta (§ Threat Matrix de design.md — "nunca error/stack trace").
+// Fase 6d (design.md D-C, spec "Error path does not query the DB"): usa
+// `res.locals.storeConfig` si el middleware de chrome ya corrió, o
+// `storeConfig.fromEnv()` (sin I/O) si el error pasó ANTES de esa
+// middleware — la base de datos puede ser justo lo que falló, así que este
+// handler JAMÁS espera una query nueva.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);
@@ -123,7 +137,7 @@ app.use((err, req, res, next) => {
     title: 'Ocurrió un error',
     menuTree: res.locals.menuTree || [],
     announcementItems: res.locals.announcementItems || [],
-    storeConfig: require('./config/env'),
+    storeConfig: res.locals.storeConfig || storeConfig.fromEnv(),
     csrfToken: res.locals.csrfToken || '',
   });
 });

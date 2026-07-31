@@ -509,15 +509,73 @@ veces tras las rondas de QA). Sin migraciones nuevas — el esquema de
 Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
 archive, Engram #376-#384.
 
+### Fase 6d — Panel: carrusel + configuración ✅ cerrada
+
+CRUD de `carousel_slides` (`/admin/carrusel`): alta desde una sola foto,
+edición de metadata (alt text, link, ventana de vigencia `starts_at`/
+`ends_at`) sin volver a subir imagen, reorder ↑/↓, borrado real (fila +
+archivos). Mismos 3 estados del home ya establecidos (0 slides → nada;
+1 → fijo sin JS; 2+ → carrusel con rotación). Migración de
+`WHATSAPP_ADMIN`/`INSTAGRAM`/`EMAIL_CONTACTO`/`CUIT` de `.env` a
+`site_settings` vía un resolver de 3 niveles
+(`src/services/store-config.js`: panel → `.env` → default), con whitelist
+explícita de lo que llega a las vistas (`.env` completo se filtraba antes,
+exponiendo `SESSION_SECRET`/`DATABASE_URL` a cualquier página pública — cerrado
+esta fase). Validación de WhatsApp/CUIT (mod-11, aviso no bloqueante) y
+`normalizeLinkUrl` (bloquea XSS vía `javascript:` en el link de cada slide).
+Migración 008: `carousel_slides.image_desktop` → `base_key` opaco, mismo
+patrón que la 007 de Fase 6b.
+
+**Cambio de diseño grande a mitad de QA, confirmado por la dueña**: el
+diseño original (y la propuesta que lo justificaba) asumía que los slides
+eran FOTOS, forzando un recorte a relación de aspecto fija (2.5:1
+desktop / 4:5 mobile) vía `sharp`, con un derivado mobile separado. Al
+probarlo, la dueña aclaró que los slides son piezas de diseño ya armadas
+(banners de Canva/similar sobre promociones) — recortarlas cortaba texto y
+logos. Se revirtió a un único perfil `carousel` sin recorte
+(`aspectRatio: null` → `fit: 'inside'`, preserva la proporción original),
+sin derivado mobile: una sola imagen sirve para cualquier pantalla. El
+contenedor público mantiene alto fijo (para que el carrusel no cambie de
+tamaño al rotar entre slides de proporciones distintas) pero con
+`object-contain` y fondo detrás — la imagen se ve siempre completa, nunca
+recortada. `spec.md`/`design.md` de esta fase quedan desactualizados a
+propósito (describen el diseño con recorte); el verify-report (Engram
+#393) es el registro autoritativo del diseño final.
+
+**QA con bugs reales encontrados y corregidos**:
+1. Crear un slide fallaba siempre ("Subí una foto para crear el slide")
+   — el atributo `enctype="multipart/form-data"` se armaba como string
+   dentro de un output EJS escapado, que convertía las comillas en
+   entidades HTML y rompía el atributo; el navegador caía al enctype por
+   defecto, que no puede llevar archivos.
+2. El fix del bug anterior rompió Editar (CSRF inválido) al dejar el
+   enctype siempre presente — la ruta de editar no tiene `multer`, así
+   que con Content-Type multipart nadie parseaba `req.body._csrf`. Fix
+   correcto: el atributo va condicional de nuevo, pero como bloque de
+   control de EJS, nunca como string interpolado.
+3. Vaciar Instagram/mail en Configuración no los sacaba del footer — el
+   resolver de 3 niveles no distinguía "nunca se guardó nada" de "se
+   guardó vacío a propósito": ambos caían al fallback de `.env`. Fix: si
+   hay fila en `site_settings` (la dueña guardó Configuración), el panel
+   gana siempre, incluso vacío.
+4. **Bug real de Fase 3/4, expuesto recién ahora**: talle y color se
+   restringían mutuamente en el selector de variantes — con combinaciones
+   parciales (ej. solo S/Rojo y L/Azul en stock), elegir un color ocultaba
+   el talle que no combinaba con él, dejando a la clienta sin poder
+   alcanzar la otra combinación. La regla correcta (ya documentada en
+   `prompt.md` §3.2 pero nunca implementada así): talle es siempre el eje
+   maestro, visible completo; color se recalcula según el talle elegido
+   — asimétrico, no mutuo.
+
+251/251 tests no dependientes de `sharp` corridos también desde WSL como
+segunda evidencia; suite completa confirmada en verde por la dueña desde
+Windows tras cada ronda de QA.
+
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #387-#394.
+
 ## Fases sin empezar
 
-6d. **Panel: carrusel + configuración** — CRUD de `carousel_slides`
-   (hoy solo por seed) con los mismos 3 estados (0/1/2+ imágenes) que ya
-   tiene el home. Migración de `WHATSAPP_ADMIN`/`INSTAGRAM`/
-   `EMAIL_CONTACTO`/`CUIT` de `.env` a `site_settings` (confirmado esta
-   sesión) — `.env` queda solo para secretos/infra
-   (`DATABASE_URL`/`SESSION_SECRET`/etc.), el panel pasa a ser la fuente
-   de verdad de esos datos de negocio.
 7. **Pulido** — SEO (JSON-LD, sitemap.xml, robots.txt, OG tags — nada de
    esto existe todavía), accesibilidad fina, performance, lightbox/zoom de
    la ficha, páginas de error visualmente pulidas (`404.ejs`/`500.ejs`

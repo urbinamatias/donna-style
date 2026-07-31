@@ -50,3 +50,22 @@ test('imageSrc/imageSrcset: nunca aceptan un base_key con path traversal (defens
   assert.throws(() => imageSrc(12, '../etc/passwd'), /base_key/);
   assert.throws(() => imageSrcset(12, 'a/b'), /base_key/);
 });
+
+// Fase 6d (tasks.md 3.1, design.md "File Changes"); QA ronda 2:
+// `slideImageAttrs` deriva las URLs del carrusel — un solo derivado por
+// slide, sin sufijo de variante (los slides son banners de diseño, se
+// muestran completos, sin recorte, no hay "versión mobile" aparte).
+const { slideImageAttrs } = require('../../src/services/image-urls');
+
+test('slideImageAttrs: arma src/srcset con los 3 anchos, sin sufijo de variante', () => {
+  const attrs = slideImageAttrs('k3x9');
+  assert.equal(attrs.src, '/uploads/carousel/k3x9-1920.webp');
+  assert.equal(
+    attrs.srcset,
+    '/uploads/carousel/k3x9-768.webp 768w, /uploads/carousel/k3x9-1280.webp 1280w, /uploads/carousel/k3x9-1920.webp 1920w'
+  );
+});
+
+test('slideImageAttrs: nunca acepta un base_key con path traversal', () => {
+  assert.throws(() => slideImageAttrs('../etc/passwd'), /base_key/);
+});

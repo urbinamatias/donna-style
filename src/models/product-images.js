@@ -4,6 +4,7 @@
 // patrón client-aware que products.js/variants.js (`client = db` default
 // para poder correr dentro de una transacción cuando hace falta).
 const db = require('../db/pool');
+const { reorderIds } = require('../services/ordering');
 
 // images: [{ filename: baseKey, altText, sortOrder, isPrimary }]
 // (el nombre de campo `filename` del payload se mantiene por compatibilidad
@@ -52,19 +53,11 @@ function canDeleteImage({ isActive, imageCount }) {
 }
 
 // Spec "Reorder with up/down controls only": pura, sin DB — el router la usa
-// para calcular el nuevo orden y `reorder()` lo persiste. `direction` es
-// 'up' | 'down'. En los extremos (primero+up, último+down) es un no-op.
-function reorderIds(ids, id, direction) {
-  const index = ids.indexOf(id);
-  if (index === -1) return ids;
-
-  const targetIndex = direction === 'up' ? index - 1 : index + 1;
-  if (targetIndex < 0 || targetIndex >= ids.length) return ids;
-
-  const next = ids.slice();
-  [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-  return next;
-}
+// para calcular el nuevo orden y `reorder()` lo persiste. Extraída a
+// `services/ordering.js` en Fase 6d (design.md D-F, carousel-slides.js
+// también reordena) y re-exportada acá SIN CAMBIOS para que
+// `test/models/product-images.test.js` (que la importa desde este módulo)
+// siga en verde.
 
 async function updateAltText(imageId, altText, client = db) {
   const { rows } = await client.query(

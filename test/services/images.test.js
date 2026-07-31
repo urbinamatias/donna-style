@@ -107,3 +107,113 @@ test('removeImageFiles: borra los 3 derivados y tolera ENOENT si ya no existen',
   // Segunda vez: los archivos ya no existen (ENOENT), no debe lanzar.
   await assert.doesNotReject(() => images.removeImageFiles(1, baseKey, { outputDir: tmpDir }));
 });
+
+// Fase 6d (tasks.md 1.1, design.md D-A): MIN_SHORT_SIDE global pasa a ser
+// `minWidth`/`minHeight` por perfil (`product`/`carousel`). El perfil
+// `product` (default cuando no se pasa `profile`) debe seguir
+// comportándose byte-idéntico — todos los tests de arriba corren SIN
+// modificar y deben seguir en verde.
+//
+// QA fase 6d, ronda 2: el perfil `carousel` NO recorta (los slides son
+// banners de diseño ya armados, no fotos) — `aspectRatio: null`,
+// `fit: 'inside'`, la proporción original de la imagen se preserva
+// siempre. Solo exige un ancho mínimo razonable (1200px), sin relación de
+// aspecto ni alto mínimo específico.
+
+test('assertUsable: perfil carousel acepta cualquier proporción, con ancho >= 1200', async () => {
+  const buffer = await makeFixtureBuffer({ width: 1200, height: 400 });
+  await assert.doesNotReject(() => images.assertUsable(buffer, 'carousel'));
+});
+
+test('assertUsable: perfil carousel rechaza ancho por debajo de 1200 con mensaje que documenta el mínimo', async () => {
+  const buffer = await makeFixtureBuffer({ width: 1100, height: 800 });
+  await assert.rejects(
+    () => images.assertUsable(buffer, 'carousel'),
+    (err) => err.code === 'TOO_SMALL' && /1200/.test(err.message)
+  );
+});
+
+test('assertUsable: sin profile explícito, sigue aplicando el perfil product (default) — 900x1600 TOO_SMALL con "1000" en el mensaje', async () => {
+  const buffer = await makeFixtureBuffer({ width: 900, height: 1600 });
+  await assert.rejects(
+    () => images.assertUsable(buffer),
+    (err) => err.code === 'TOO_SMALL' && /1000/.test(err.message)
+  );
+});
+
+test('processImage: perfil carousel produce 3 derivados sin sufijo, preservando la proporción ORIGINAL de la imagen (sin recorte)', async (t) => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'donna-img-'));
+  t.after(() => fs.rm(tmpDir, { recursive: true, force: true }));
+
+  // Fuente 1600x900 (16:9, ni 4:3 ni 2.5:1) — a propósito una proporción
+  // "rara" para dejar en evidencia que NINGÚN derivado la fuerza a otra.
+  const buffer = await makeFixtureBuffer({ width: 1600, height: 900 });
+  const baseKey = images.generateBaseKey();
+
+  const result = await images.processImage(buffer, {
+    baseKey,
+    outputDir: tmpDir,
+    profile: 'carousel',
+  });
+  assert.deepEqual(result.widths, [768, 1280, 1920]);
+
+  for (const width of [768, 1280, 1920]) {
+    const filePath = path.join(tmpDir, `${baseKey}-${width}.webp`);
+    const meta = await sharp(filePath).metadata();
+    assert.equal(meta.format, 'webp');
+    assert.equal(meta.width, width);
+    assert.equal(
+      Math.round((meta.height / meta.width) * 1000),
+      Math.round((900 / 1600) * 1000),
+      `el derivado ${width}w debe conservar la proporción 16:9 original, nunca recortarla`
+    );
+  }
+});
+
+test('processImage: perfil carousel con una fuente vertical (retrato) también preserva su proporción, sin forzar horizontal', async (t) => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'donna-img-'));
+  t.after(() => fs.rm(tmpDir, { recursive: true, force: true }));
+
+  const buffer = await makeFixtureBuffer({ width: 1200, height: 1600 });
+  const baseKey = images.generateBaseKey();
+
+  await images.processImage(buffer, { baseKey, outputDir: tmpDir, profile: 'carousel' });
+
+  const filePath = path.join(tmpDir, `${baseKey}-768.webp`);
+  const meta = await sharp(filePath).metadata();
+  assert.equal(meta.width, 768);
+  assert.equal(
+    Math.round((meta.height / meta.width) * 1000),
+    Math.round((1600 / 1200) * 1000),
+    'un banner vertical no debe recortarse a algo horizontal'
+  );
+});
+
+test('processImage: perfil carousel con la fuente mínima 1200 de ancho igual produce el derivado 1920w (upscale leve permitido)', async (t) => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'donna-img-'));
+  t.after(() => fs.rm(tmpDir, { recursive: true, force: true }));
+
+  const buffer = await makeFixtureBuffer({ width: 1200, height: 500 });
+  const baseKey = images.generateBaseKey();
+
+  await images.processImage(buffer, { baseKey, outputDir: tmpDir, profile: 'carousel' });
+  const filePath = path.join(tmpDir, `${baseKey}-1920.webp`);
+  const meta = await sharp(filePath).metadata();
+  assert.equal(meta.width, 1920, 'el derivado 1920w debe existir con su ancho completo, incluso si implica upscale');
+});
+
+test('removeImageFiles: perfil carousel borra los 3 derivados y tolera ENOENT', async (t) => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'donna-img-'));
+  t.after(() => fs.rm(tmpDir, { recursive: true, force: true }));
+
+  const buffer = await makeFixtureBuffer({ width: 1920, height: 1350 });
+  const baseKey = images.generateBaseKey();
+  await images.processImage(buffer, { baseKey, outputDir: tmpDir, profile: 'carousel' });
+
+  await assert.doesNotReject(() =>
+    images.removeImageFiles(null, baseKey, { outputDir: tmpDir, profile: 'carousel' })
+  );
+  await assert.doesNotReject(() =>
+    images.removeImageFiles(null, baseKey, { outputDir: tmpDir, profile: 'carousel' })
+  );
+});

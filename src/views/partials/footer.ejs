@@ -27,8 +27,15 @@
       <h2 class="font-semibold mb-3 uppercase tracking-wide">Contacto</h2>
       <ul class="space-y-2 text-textMuted">
         <li><a href="https://wa.me/<%= storeConfig.WHATSAPP_ADMIN %>" class="hover:text-brandInk" rel="noopener noreferrer" target="_blank">WhatsApp</a></li>
-        <li><a href="https://instagram.com/<%= storeConfig.INSTAGRAM.replace('@', '') %>" class="hover:text-brandInk" rel="noopener noreferrer" target="_blank"><%= storeConfig.INSTAGRAM %></a></li>
-        <li><a href="mailto:<%= storeConfig.EMAIL_CONTACTO %>" class="hover:text-brandInk"><%= storeConfig.EMAIL_CONTACTO %></a></li>
+        <%# Fase 6d (site-settings-config, spec "Optional fields hide, never
+          break"): instagram/email son opcionales — vacíos desde el panel,
+          ausentes acá, nunca un link roto (§4.5). %>
+        <% if (storeConfig.INSTAGRAM) { %>
+          <li><a href="https://instagram.com/<%= storeConfig.INSTAGRAM.replace('@', '') %>" class="hover:text-brandInk" rel="noopener noreferrer" target="_blank"><%= storeConfig.INSTAGRAM %></a></li>
+        <% } %>
+        <% if (storeConfig.EMAIL_CONTACTO) { %>
+          <li><a href="mailto:<%= storeConfig.EMAIL_CONTACTO %>" class="hover:text-brandInk"><%= storeConfig.EMAIL_CONTACTO %></a></li>
+        <% } %>
       </ul>
     </div>
   </div>

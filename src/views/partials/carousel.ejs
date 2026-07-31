@@ -3,38 +3,56 @@
   0 slides → esta vista no renderiza nada (ni wrapper, ni altura reservada,
   §4.5). 1 slide → imagen fija, cero JS. 2+ → carrusel completo, carga
   carousel.js (wireado desde pages/home.ejs vía bodyScripts).
+
+  QA fase 6d, ronda 2 (corrige el enfoque original de Fase 6d): los slides
+  son piezas de diseño ya armadas por la dueña (banners de Canva/similar
+  sobre promociones), no fotos de celular — recortarlos a una relación de
+  aspecto fija les cortaba texto/logos del diseño. Cada imagen se muestra
+  SIEMPRE completa (`object-contain`, nunca `cover`) dentro de un
+  contenedor de alto fijo (evita que el carrusel "salte" de tamaño al rotar
+  entre slides de proporciones distintas) — si la proporción de la imagen
+  no llena el contenedor, queda espacio de fondo a los costados o arriba/
+  abajo, nunca se pierde contenido del diseño. Un solo derivado por slide
+  (perfil `carousel` de `services/images.js`), sin versión mobile aparte:
+  sin recorte no hay nada que "adaptar" por dispositivo.
 ------------------------------------------------------------------ %>
 <% if (slides.length === 1) { %>
   <% const slide = slides[0]; %>
+  <% const attrs = slideImageAttrs(slide.base_key); %>
   <div class="mx-auto max-w-[1400px] px-4 py-4">
     <% if (slide.link_url) { %><a href="<%= slide.link_url %>"><% } %>
-      <img
-        src="/img/<%= slide.image_desktop %>"
-        alt="<%= slide.alt_text %>"
-        fetchpriority="high"
-        class="w-full rounded-md object-cover"
-        style="aspect-ratio: 2.5 / 1;"
-      >
+      <div class="aspect-[4/5] md:aspect-[2.5/1] w-full overflow-hidden rounded-md bg-bg">
+        <img
+          src="<%= attrs.src %>"
+          srcset="<%= attrs.srcset %>"
+          sizes="100vw"
+          alt="<%= slide.alt_text %>"
+          fetchpriority="high"
+          class="h-full w-full object-contain"
+        >
+      </div>
     <% if (slide.link_url) { %></a><% } %>
   </div>
 <% } else if (slides.length >= 2) { %>
   <div class="mx-auto max-w-[1400px] px-4 py-4">
     <div
       data-carousel
-      class="relative overflow-hidden rounded-md"
-      style="aspect-ratio: 2.5 / 1;"
+      class="relative overflow-hidden rounded-md bg-bg aspect-[4/5] md:aspect-[2.5/1]"
       role="region"
       aria-roledescription="carrusel"
       aria-label="Promociones"
     >
       <% slides.forEach(function (slide, i) { %>
+        <% const attrs = slideImageAttrs(slide.base_key); %>
         <div data-carousel-slide class="absolute inset-0 transition-opacity duration-200<% if (i !== 0) { %> opacity-0 pointer-events-none<% } %>" aria-hidden="<%= i !== 0 %>">
-          <% if (slide.link_url) { %><a href="<%= slide.link_url %>"><% } %>
+          <% if (slide.link_url) { %><a href="<%= slide.link_url %>" class="block h-full w-full"><% } %>
             <img
-              src="/img/<%= slide.image_desktop %>"
+              src="<%= attrs.src %>"
+              srcset="<%= attrs.srcset %>"
+              sizes="100vw"
               alt="<%= slide.alt_text %>"
               <% if (i === 0) { %>fetchpriority="high"<% } else { %>loading="lazy"<% } %>
-              class="h-full w-full object-cover"
+              class="h-full w-full object-contain"
             >
           <% if (slide.link_url) { %></a><% } %>
         </div>

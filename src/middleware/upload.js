@@ -34,23 +34,35 @@ const upload = multer({
 
 // Mensajes es-AR para los códigos de error que multer puede lanzar (spec:
 // "rechazos legibles en español en todo el flujo"). Se usa como middleware
-// de manejo de errores DESPUÉS de `upload.array(...)` en la ruta.
-function mapMulterError(err, req, res, next) {
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).render('admin/layouts/admin', {
-        view: '../products/form',
-        title: 'Editar producto',
-        error: 'El archivo supera el límite de 12 MB por imagen.',
-        status: 400,
-      });
+// de manejo de errores DESPUÉS de `upload.array(...)`/`upload.single(...)`
+// en la ruta.
+//
+// Fase 6d (design.md D-E, bug real encontrado en diseño): esto hardcodeaba
+// `../products/form` — reusarlo tal cual en el router de carrusel
+// renderizaría la vista EQUIVOCADA ante un archivo de más de 12 MB.
+// `makeMulterErrorHandler({view, title})` generaliza el handler; esta
+// función queda como la instancia product-bound, sin cambios de
+// comportamiento para las rutas ya existentes de Fase 6b.
+function makeMulterErrorHandler({ view, title }) {
+  return function multerErrorHandler(err, req, res, next) {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).render('admin/layouts/admin', {
+          view,
+          title,
+          error: 'El archivo supera el límite de 12 MB por imagen.',
+          status: 400,
+        });
+      }
+      return res.status(400).send(`Error subiendo el archivo: ${err.message}`);
     }
-    return res.status(400).send(`Error subiendo el archivo: ${err.message}`);
-  }
-  if (err && err.code === 'BAD_IMAGE') {
-    return res.status(400).send(err.message);
-  }
-  return next(err);
+    if (err && err.code === 'BAD_IMAGE') {
+      return res.status(400).send(err.message);
+    }
+    return next(err);
+  };
 }
 
-module.exports = { upload, mapMulterError, MAX_FILE_SIZE_BYTES, MAX_FILES };
+const mapMulterError = makeMulterErrorHandler({ view: '../products/form', title: 'Editar producto' });
+
+module.exports = { upload, mapMulterError, makeMulterErrorHandler, MAX_FILE_SIZE_BYTES, MAX_FILES };

@@ -1,0 +1,65 @@
+<%# Configuración — Fase 6d (design.md D-C/D-D). 4 campos que alimentan el
+  resolver de 3 niveles (store-config.js): whatsapp_admin/instagram/
+  email_contacto/cuit. `whatsapp_admin`/`cuit` requeridos; `instagram`/
+  `email_contacto` opcionales — vacío oculta el link en el footer (§4.5). %>
+<div class="flex flex-col gap-6">
+  <h1 class="font-brand text-3xl">Configuración</h1>
+
+  <p class="rounded border-2 border-borderStrong bg-bg px-4 py-3 text-sm text-textMuted">
+    Los textos de las páginas institucionales (envíos, cambios, medios de pago, términos, etc. —
+    claves <code>page_*</code>) también tienen datos de contacto y NO se editan desde acá todavía:
+    hay que actualizarlos a mano en el código si cambian.
+  </p>
+
+  <form method="POST" action="/admin/configuracion" class="flex flex-col gap-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label class="flex flex-col gap-1 text-sm">
+      WhatsApp
+      <span class="text-xs font-normal text-textMuted">Solo números, con código de país (ej. 5493517505083). Obligatorio.</span>
+      <input type="text" name="whatsapp_admin" value="<%= values.whatsapp_admin %>" required
+             class="w-full rounded border-2 <%= errors.whatsapp_admin ? 'border-error' : 'border-border' %> px-3 py-2">
+      <% if (errors.whatsapp_admin) { %>
+        <span class="text-xs text-error"><%= errors.whatsapp_admin %></span>
+      <% } %>
+      <% if (values.whatsapp_admin) { %>
+        <span class="text-xs text-textMuted">Preview: https://wa.me/<%= values.whatsapp_admin %></span>
+      <% } %>
+    </label>
+
+    <label class="flex flex-col gap-1 text-sm">
+      Instagram
+      <span class="text-xs font-normal text-textMuted">@handle o URL de instagram.com. Opcional — vacío oculta el link.</span>
+      <input type="text" name="instagram" value="<%= values.instagram %>"
+             class="w-full rounded border-2 <%= errors.instagram ? 'border-error' : 'border-border' %> px-3 py-2">
+      <% if (errors.instagram) { %>
+        <span class="text-xs text-error"><%= errors.instagram %></span>
+      <% } %>
+    </label>
+
+    <label class="flex flex-col gap-1 text-sm">
+      Email de contacto
+      <span class="text-xs font-normal text-textMuted">Opcional — vacío oculta el link.</span>
+      <input type="email" name="email_contacto" value="<%= values.email_contacto %>"
+             class="w-full rounded border-2 <%= errors.email_contacto ? 'border-error' : 'border-border' %> px-3 py-2">
+      <% if (errors.email_contacto) { %>
+        <span class="text-xs text-error"><%= errors.email_contacto %></span>
+      <% } %>
+    </label>
+
+    <label class="flex flex-col gap-1 text-sm">
+      CUIT
+      <span class="text-xs font-normal text-textMuted">NN-NNNNNNNN-N u 11 dígitos. Obligatorio.</span>
+      <input type="text" name="cuit" value="<%= values.cuit %>" required
+             class="w-full rounded border-2 <%= errors.cuit ? 'border-error' : 'border-border' %> px-3 py-2">
+      <% if (errors.cuit) { %>
+        <span class="text-xs text-error"><%= errors.cuit %></span>
+      <% } %>
+      <% if (warnings.cuit) { %>
+        <span class="text-xs text-warning" role="alert"><%= warnings.cuit %></span>
+      <% } %>
+    </label>
+
+    <button type="submit" class="self-start rounded bg-text px-4 py-2 text-bg">Guardar</button>
+  </form>
+</div>

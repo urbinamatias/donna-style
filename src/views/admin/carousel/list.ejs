@@ -1,0 +1,61 @@
+<%# Listado de slides del carrusel (§5.3, Fase 6d, spec "Slide listing with
+  resulting home behaviour"). `behaviourMessage` resume qué va a pasar en el
+  home ahora mismo: 0 visibles -> oculto, 1 -> fijo, 2+ -> rota. %>
+<div class="flex flex-col gap-6">
+  <div class="flex items-center justify-between">
+    <h1 class="font-brand text-3xl">Carrusel</h1>
+    <a href="/admin/carrusel/nuevo" class="rounded bg-text px-4 py-2 text-bg">+ Nuevo slide</a>
+  </div>
+
+  <p class="rounded border-2 border-borderStrong bg-bg px-4 py-3 text-sm text-textMuted">
+    <%= behaviourMessage %>
+  </p>
+
+  <% if (slides.length === 0) { %>
+    <p class="text-textMuted">Todavía no hay slides cargados.</p>
+  <% } else { %>
+    <ul class="flex flex-col gap-3">
+      <% slides.forEach(function (slide, i) { %>
+        <li class="flex flex-col gap-2 rounded border border-border p-3 sm:flex-row sm:items-center">
+          <img
+            src="<%= slideImageAttrs(slide.base_key).src %>"
+            alt="<%= slide.alt_text %>"
+            class="h-20 w-36 shrink-0 rounded object-cover"
+          >
+          <div class="flex flex-1 flex-col gap-1">
+            <span class="font-medium"><%= slide.alt_text %></span>
+            <span class="text-xs text-textMuted">
+              <%= isEffectivelyVisible(slide) ? 'Visible ahora' : (slide.is_active ? 'Activo, fuera de ventana' : 'Inactivo') %>
+              <% if (slide.link_url) { %> · Link: <%= slide.link_url %><% } %>
+            </span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 text-sm">
+            <a href="/admin/carrusel/<%= slide.id %>/editar" class="rounded border border-border px-2 py-1 text-xs">Editar</a>
+
+            <form method="POST" action="/admin/carrusel/<%= slide.id %>/mover">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="direction" value="up">
+              <button type="submit" <%= i === 0 ? 'disabled' : '' %>
+                      class="rounded border border-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Subir slide">↑</button>
+            </form>
+            <form method="POST" action="/admin/carrusel/<%= slide.id %>/mover">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="direction" value="down">
+              <button type="submit" <%= i === slides.length - 1 ? 'disabled' : '' %>
+                      class="rounded border border-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Bajar slide">↓</button>
+            </form>
+
+            <form method="POST" action="/admin/carrusel/<%= slide.id %>/eliminar"
+                  onsubmit="return confirm('¿Borrar este slide? Esta acción no se puede deshacer.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="rounded border border-error px-2 py-1 text-xs text-error">Borrar</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>

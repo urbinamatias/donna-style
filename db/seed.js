@@ -123,11 +123,36 @@ async function seedSiteSettings() {
   return entries.length;
 }
 
+// Fase 6d (spec "Post-migration state": todo slide sembrado tiene su
+// derivado en disco), QA ronda 2: un solo perfil `carousel` (sin recorte —
+// los slides son banners de diseño, no fotos). Cada fixture se procesa con
+// el MISMO `images.processImage` que usa un alta real desde el panel. Si
+// el pipeline falla para un fixture puntual, se loguea y ese slide se
+// omite (mismo criterio tolerante que `processFixtureImages` para
+// productos) — nunca aborta el seed entero.
 async function seedCarouselSlides() {
   let created = 0;
-  for (const fixture of carouselSlideFixtures) {
-    await carouselSlidesModel.create(fixture);
-    created += 1;
+  for (const [index, fixture] of carouselSlideFixtures.entries()) {
+    try {
+      const buffer = await fs.readFile(fixture.sourcePath);
+      await images.assertUsable(buffer, 'carousel');
+
+      const baseKey = images.generateBaseKey();
+      await images.processImage(buffer, { baseKey, profile: 'carousel' });
+
+      await carouselSlidesModel.create({
+        baseKey,
+        altText: fixture.altText,
+        linkUrl: fixture.linkUrl,
+        sortOrder: fixture.sortOrder ?? index,
+        isActive: fixture.isActive,
+        startsAt: fixture.startsAt,
+        endsAt: fixture.endsAt,
+      });
+      created += 1;
+    } catch (err) {
+      console.warn(`  ⚠ No se pudo procesar el slide "${fixture.altText}": ${err.message}`);
+    }
   }
   return created;
 }

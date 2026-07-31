@@ -14,6 +14,8 @@ const productImagesRouter = require('./product-images');
 const productsRouter = require('./products');
 const stockRouter = require('./stock');
 const ordersRouter = require('./orders');
+const carouselRouter = require('./carousel');
+const settingsRouter = require('./settings');
 const { requireAdmin } = require('../../middleware/auth');
 const productsModel = require('../../models/products');
 const ordersModel = require('../../models/orders');
@@ -81,5 +83,10 @@ router.use(productImagesRouter);
 router.use(productsRouter);
 router.use(stockRouter);
 router.use(ordersRouter);
+// Fase 6d: mismo criterio de montaje que el resto — dentro de `adminRouter`,
+// ANTES de `publicRouter` (app.js), así que `/admin/carrusel` y
+// `/admin/configuracion` nunca son capturados por el comodín `/:parentSlug`.
+router.use(carouselRouter);
+router.use(settingsRouter);
 
 module.exports = router;

@@ -1,0 +1,91 @@
+<%# Alta/edición de slide (Fase 6d, spec "Slide creation from a single
+  upload" / "Slide edition, scheduling and ordering"). UN solo input de
+  archivo — nunca dos (nunca hay upload mobile separado). Solo se muestra
+  en alta; en edición la imagen ya existe y no se puede re-subir. %>
+<div class="flex flex-col gap-6">
+  <h1 class="font-brand text-3xl"><%= slide && slide.id ? 'Editar slide' : 'Nuevo slide' %></h1>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <p class="rounded border-2 border-error bg-white px-4 py-3 text-base text-error"><%= error %></p>
+  <% } %>
+
+  <% if (slide && slide.id) { %>
+    <img
+      src="<%= slideImageAttrs(slide.base_key).src %>"
+      alt="<%= slide.alt_text %>"
+      class="h-32 w-full max-w-md rounded object-cover"
+    >
+  <% } %>
+
+  <%# Bug real #1 (QA fase 6d): armar el atributo enctype como string dentro
+    de un output interpolado y escapado lo rompía — el escape convierte cada
+    comilla en su entidad HTML, así que "multipart/form-data" salía con
+    comillas codificadas en vez de comillas reales. El navegador no
+    reconoce ese valor y cae al enctype por defecto
+    (application/x-www-form-urlencoded), que no puede llevar el archivo.
+    req.file quedaba siempre undefined en el alta.
+
+    Bug real #2 (el fix de arriba lo introdujo, QA siguiente ronda): poner
+    el atributo SIEMPRE presente (también en editar) rompía EDITAR — esa
+    ruta (POST /admin/carrusel/:id) no tiene multer en el medio (no espera
+    archivo), así que con Content-Type multipart nadie parsea el body:
+    req.body._csrf queda vacío y el guard de CSRF de la ruta lo rechaza con
+    403. El atributo tiene que ser condicional de nuevo — pero como bloque
+    de control de EJS, nunca como string pasado por un output interpolado,
+    para no reintroducir el bug #1. %>
+  <form
+    method="POST"
+    action="<%= slide && slide.id ? `/admin/carrusel/${slide.id}` : '/admin/carrusel' %>"
+    <% if (!(slide && slide.id)) { %>enctype="multipart/form-data"<% } %>
+    class="flex flex-col gap-4"
+  >
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <% if (!(slide && slide.id)) { %>
+      <label class="flex flex-col gap-1 text-sm">
+        Foto
+        <span class="text-xs font-normal text-textMuted">
+          Subí el diseño completo (banner, promo, etc.) — se muestra entero, nunca se recorta.
+          Ancho mínimo recomendado: 1200px.
+        </span>
+        <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" required>
+      </label>
+    <% } %>
+
+    <label class="flex flex-col gap-1 text-sm">
+      Texto alternativo
+      <span class="text-xs font-normal text-textMuted">Describe la foto para lectores de pantalla y buscadores. Obligatorio.</span>
+      <input type="text" name="alt_text" value="<%= slide ? slide.alt_text : '' %>" required
+             class="w-full rounded border border-border px-3 py-2">
+    </label>
+
+    <label class="flex flex-col gap-1 text-sm">
+      Link (opcional)
+      <span class="text-xs font-normal text-textMuted">Ruta relativa (/categoria) o URL completa. Vacío = sin link.</span>
+      <input type="text" name="link_url" value="<%= slide && slide.link_url ? slide.link_url : '' %>"
+             class="w-full rounded border border-border px-3 py-2">
+    </label>
+
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <label class="flex flex-1 flex-col gap-1 text-sm">
+        Desde (opcional)
+        <input type="date" name="starts_at"
+               value="<%= slide && slide.starts_at ? new Date(slide.starts_at).toISOString().slice(0, 10) : '' %>"
+               class="w-full rounded border border-border px-3 py-2">
+      </label>
+      <label class="flex flex-1 flex-col gap-1 text-sm">
+        Hasta (opcional)
+        <input type="date" name="ends_at"
+               value="<%= slide && slide.ends_at ? new Date(slide.ends_at).toISOString().slice(0, 10) : '' %>"
+               class="w-full rounded border border-border px-3 py-2">
+      </label>
+    </div>
+
+    <label class="flex items-center gap-2 text-sm">
+      <input type="checkbox" name="is_active" <%= slide && slide.is_active ? 'checked' : '' %>>
+      Activo
+    </label>
+
+    <button type="submit" class="self-start rounded bg-text px-4 py-2 text-bg">Guardar</button>
+  </form>
+</div>

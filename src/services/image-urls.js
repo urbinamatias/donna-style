@@ -35,4 +35,37 @@ function imageAttrs(productId, baseKey, { widths = IMAGE_WIDTHS, sizes } = {}) {
   return attrs;
 }
 
-module.exports = { IMAGE_WIDTHS, imageSrc, imageSrcset, imageAttrs };
+// Fase 6d (design.md, "File Changes"; QA ronda 2: un solo derivado, sin
+// recorte — ver `services/images.js#PROFILES.carousel`). Mismo esquema que
+// product-images, sin sufijo de variante: un slide es UNA sola imagen,
+// nunca dos crops distintos por dispositivo. `assertBaseKey` se reusa tal
+// cual (path traversal defense).
+const CAROUSEL_WIDTHS = Object.freeze([768, 1280, 1920]);
+
+function slideImageSrc(baseKey, width) {
+  assertBaseKey(baseKey);
+  return `/uploads/carousel/${baseKey}-${width}.webp`;
+}
+
+function slideImageSrcset(baseKey) {
+  return CAROUSEL_WIDTHS.map((w) => `${slideImageSrc(baseKey, w)} ${w}w`).join(', ');
+}
+
+// `{src, srcset}` listos para `<img>` — `src` usa el ancho más grande del
+// perfil como default, igual criterio que `imageAttrs`.
+function slideImageAttrs(baseKey) {
+  return {
+    src: slideImageSrc(baseKey, CAROUSEL_WIDTHS[CAROUSEL_WIDTHS.length - 1]),
+    srcset: slideImageSrcset(baseKey),
+  };
+}
+
+module.exports = {
+  IMAGE_WIDTHS,
+  imageSrc,
+  imageSrcset,
+  imageAttrs,
+  slideImageAttrs,
+  slideImageSrc,
+  slideImageSrcset,
+};

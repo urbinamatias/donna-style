@@ -137,7 +137,11 @@ router.post('/checkout', async (req, res, next) => {
       customerNote,
       orderUrl,
     });
-    const waLink = ordersService.buildWaLink(config.WHATSAPP_ADMIN, message);
+    // Fase 6d (design.md D-C): el número de WhatsApp lo resuelve el panel
+    // (site_settings → .env → default), nunca `config.WHATSAPP_ADMIN`
+    // directo — `res.locals.storeConfig` ya lo trae poblado desde el
+    // middleware de chrome de app.js, sin query extra acá.
+    const waLink = ordersService.buildWaLink(res.locals.storeConfig.WHATSAPP_ADMIN, message);
 
     // Sin redirect automático a wa.me (D5/spec "Confirmation contract"): la
     // pestaña queda en nuestra propia página con el link clickeable y el
