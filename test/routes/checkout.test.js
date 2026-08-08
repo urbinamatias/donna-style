@@ -66,6 +66,29 @@ test('GET /checkout no queda shadowed por el comodín /:parentSlug (tasks.md 3.8
   assert.equal(res.status, 200);
 });
 
+// Fase 7 (spec "Non-indexable pages carry noindex" / "Checkout regression
+// guard"): checkout, confirmación y 404 preservan noindex, título propio,
+// sin tags og: — buildPrivateSeo no emite OG/canonical (§4.5).
+test('GET /checkout: noindex, título propio, sin tags og:', async () => {
+  const cookie = await newSession();
+  const csrfToken = await getCsrfToken(cookie);
+  const { rows } = await pool.query('SELECT id FROM variants WHERE stock > 0 LIMIT 1');
+  await addToCart(cookie, csrfToken, rows[0].id);
+
+  const res = await fetch(`${baseUrl}/checkout`, { headers: { cookie } });
+  const html = await res.text();
+  assert.ok(html.includes('<meta name="robots" content="noindex">'));
+  assert.ok(!html.includes('property="og:'));
+  assert.ok(!html.includes('<link rel="canonical"'));
+});
+
+test('GET /checkout ruta inexistente-en-el-router (404 vía render404): noindex, sin canonical', async () => {
+  const res = await fetch(`${baseUrl}/pedido/token-que-jamas-va-a-existir`);
+  const html = await res.text();
+  assert.ok(html.includes('<meta name="robots" content="noindex">'));
+  assert.ok(!html.includes('<link rel="canonical"'));
+});
+
 test('POST /checkout sin CSRF token es 403 y no crea pedido ni muta el carrito', async () => {
   const cookie = await newSession();
   const csrfToken = await getCsrfToken(cookie);
@@ -122,6 +145,9 @@ test('POST /checkout camino feliz: crea 1 pedido + N items, status pendiente, ca
   const body = await res.text();
   assert.match(body, /Pedido/);
   assert.match(body, /wa\.me/);
+  // Fase 7: confirmación también es noindex, sin OG (buildPrivateSeo).
+  assert.ok(body.includes('<meta name="robots" content="noindex">'));
+  assert.ok(!body.includes('property="og:'));
 
   const { rows: orderRows } = await pool.query(
     "SELECT * FROM orders WHERE customer_name = 'Ana Pérez' ORDER BY id DESC LIMIT 1"

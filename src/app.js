@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const healthRouter = require('./routes/health');
+const sitemapRouter = require('./routes/sitemap');
 const cartRouter = require('./routes/cart');
 const checkoutRouter = require('./routes/checkout');
 const adminRouter = require('./routes/admin');
@@ -113,10 +114,11 @@ app.use(healthRouter);
 // Antes de publicRouter (design.md D2/D7, Fase 5 tasks.md 3.8, Fase 6a
 // design.md admin-routing): public.js termina en el comodín
 // `/:parentSlug`, que de otro modo capturaría `/carrito`, `/checkout`,
-// `/pedido/:token` y `/admin*` como si fueran slugs de categoría de primer
-// nivel. `adminRouter` va acá, no después de `publicRouter` — mismo bug
-// class, misma regla, cubierto por una regresión automatizada
-// (test/routes/admin-routing.test.js).
+// `/pedido/:token`, `/admin*` y ahora `/sitemap.xml`/`/robots.txt` como si
+// fueran slugs de categoría de primer nivel. `sitemapRouter` va acá, no
+// después de `publicRouter` — mismo bug class, misma regla (Fase 7,
+// design.md D-E, cubierto por test/routes/sitemap.test.js).
+app.use(sitemapRouter);
 app.use(cartRouter);
 app.use(checkoutRouter);
 app.use(adminRouter);

@@ -14,6 +14,11 @@
   var csrfMeta = document.querySelector('meta[name="csrf-token"]');
   var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
+  // Fuente de verdad del código de moneda: src/services/format.js#CURRENCY.
+  // Este archivo es JS de cliente sin bundler/módulos (§1 CLAUDE.md), así
+  // que no puede importarlo — queda como literal a propósito, no
+  // "consolidado" de mentira; si CURRENCY cambia alguna vez, este literal
+  // hay que actualizarlo a mano.
   var currencyFormatter = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
   function formatPrice(amount) {
     return currencyFormatter.format(amount).replace(/ /, '');

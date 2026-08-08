@@ -260,6 +260,34 @@ test('products.countWithoutStock: un producto sin variantes no cuenta (nada que 
   assert.equal(after, before, 'producto sin ninguna variante no debe sumar al conteo de sin-stock');
 });
 
+// --- Fase 7: findAllActiveSlugs (sitemap.xml, design.md D-F) ---------------
+// Consulta liviana y sin paginar: solo slug + updated_at de productos
+// ACTIVOS. Rechazado a propósito: `findAllForAdmin({ isActive: true,
+// perPage: 9999 })` arrastra `full_count`/paginación de admin a un endpoint
+// público y trunca en silencio pasado el "9999" mágico (design.md D-F).
+test('products.findAllActiveSlugs: solo trae productos is_active=true, con slug + updated_at', async () => {
+  const active = await makeProduct();
+  const inactive = await makeProduct({ isActive: false });
+
+  const rows = await productsModel.findAllActiveSlugs();
+  const slugs = rows.map((r) => r.slug);
+
+  assert.ok(slugs.includes(active.slug), 'producto activo debe aparecer');
+  assert.ok(!slugs.includes(inactive.slug), 'producto inactivo NO debe aparecer');
+
+  const row = rows.find((r) => r.slug === active.slug);
+  assert.ok(row.updated_at, 'debe traer updated_at para <lastmod>');
+  assert.equal(Object.keys(row).sort().join(','), 'slug,updated_at', 'query liviana: solo estas dos columnas');
+});
+
+test('products.findAllActiveSlugs: producto sin stock (todas las variantes en 0) sigue apareciendo', async () => {
+  const outOfStock = await makeProduct();
+  await variantsModel.bulkCreate(outOfStock.id, [{ size: 'S', stock: 0 }]);
+
+  const rows = await productsModel.findAllActiveSlugs();
+  assert.ok(rows.some((r) => r.slug === outOfStock.slug), 'is_active no depende del stock — debe seguir en el sitemap');
+});
+
 test.after(async () => {
   if (createdProductIds.length > 0) {
     await pool.query('DELETE FROM products WHERE id = ANY($1::bigint[])', [createdProductIds]);

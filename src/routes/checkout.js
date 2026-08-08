@@ -12,6 +12,7 @@ const variantsModel = require('../models/variants');
 const ordersModel = require('../models/orders');
 const cart = require('../services/cart');
 const ordersService = require('../services/orders');
+const { buildPrivateSeo } = require('../services/seo');
 const config = require('../config/env');
 
 const router = express.Router();
@@ -27,7 +28,7 @@ function setLines(req, lines) {
 function render404(req, res) {
   res.status(404).render('layouts/main', {
     view: '../pages/404',
-    title: `Página no encontrada — ${config.NOMBRE_TIENDA}`,
+    ...buildPrivateSeo({ title: `Página no encontrada — ${config.NOMBRE_TIENDA}` }),
   });
 }
 
@@ -65,7 +66,7 @@ router.get('/checkout', async (req, res, next) => {
 
     res.render('layouts/main', {
       view: '../pages/checkout',
-      title: `Finalizar pedido — ${config.NOMBRE_TIENDA}`,
+      ...buildPrivateSeo({ title: `Finalizar pedido — ${config.NOMBRE_TIENDA}` }),
       summary,
       notices,
     });
@@ -148,11 +149,10 @@ router.post('/checkout', async (req, res, next) => {
     // aviso explícito de que hay que tocar enviar.
     res.render('layouts/main', {
       view: '../pages/checkout-confirm',
-      title: `Pedido ${order.order_code} — ${config.NOMBRE_TIENDA}`,
+      ...buildPrivateSeo({ title: `Pedido ${order.order_code} — ${config.NOMBRE_TIENDA}` }),
       order,
       waLink,
       orderUrl,
-      noindex: true,
     });
   } catch (err) {
     next(err);
@@ -169,9 +169,8 @@ router.get('/pedido/:token', async (req, res, next) => {
 
     res.render('layouts/main', {
       view: '../pages/order',
-      title: `Pedido ${order.order_code} — ${config.NOMBRE_TIENDA}`,
+      ...buildPrivateSeo({ title: `Pedido ${order.order_code} — ${config.NOMBRE_TIENDA}` }),
       order,
-      noindex: true,
     });
   } catch (err) {
     next(err);

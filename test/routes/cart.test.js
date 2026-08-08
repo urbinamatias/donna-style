@@ -52,6 +52,18 @@ test('GET /carrito no queda shadowed por el comodín /:parentSlug (design.md D7)
   assert.equal(res.status, 200);
 });
 
+// Fase 7 (spec "Non-indexable pages carry noindex" / "Cart"): /carrito debe
+// llevar noindex y título propio, sin ningún tag og: (buildPrivateSeo no
+// emite OG — invariante noindex === true ⇒ sin OG/canonical).
+test('GET /carrito: noindex, título propio, sin tags og:', async () => {
+  const res = await fetch(`${baseUrl}/carrito`);
+  const html = await res.text();
+  assert.ok(html.includes('<meta name="robots" content="noindex">'));
+  assert.ok(/<title>Carrito[^<]*<\/title>/.test(html));
+  assert.ok(!html.includes('property="og:'));
+  assert.ok(!html.includes('<link rel="canonical"'));
+});
+
 test('POST /carrito/agregar sin CSRF token es 403 y no muta el carrito', async () => {
   const cookie = await newSession();
   const { rows } = await pool.query('SELECT id FROM variants WHERE stock > 0 LIMIT 1');

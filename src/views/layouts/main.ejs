@@ -21,12 +21,44 @@
   <% if (typeof noindex !== 'undefined' && noindex) { %>
   <meta name="robots" content="noindex">
   <% } %>
+  <%# Fase 7 (design.md D-D): slots aditivos y opcionales, todos guardeados
+      con `typeof` igual que metaDescription/noindex de arriba — ninguna
+      página está obligada a pasarlos. Invariante: noindex === true nunca
+      trae canonical/OG/JSON-LD (los builders de services/seo.js#buildPrivateSeo
+      ya devuelven solo { title, noindex }). %>
+  <% if (typeof canonicalUrl !== 'undefined' && canonicalUrl) { %>
+  <link rel="canonical" href="<%= canonicalUrl %>">
+  <% } %>
+  <% if (typeof ogType !== 'undefined' && ogType) { %>
+  <meta property="og:type" content="<%= ogType %>">
+  <% } %>
+  <% if (typeof ogTitle !== 'undefined' && ogTitle) { %>
+  <meta property="og:title" content="<%= ogTitle %>">
+  <% } %>
+  <% if (typeof ogDescription !== 'undefined' && ogDescription) { %>
+  <meta property="og:description" content="<%= ogDescription %>">
+  <% } %>
+  <% if (typeof ogUrl !== 'undefined' && ogUrl) { %>
+  <meta property="og:url" content="<%= ogUrl %>">
+  <% } %>
+  <% if (typeof ogImage !== 'undefined' && ogImage) { %>
+  <meta property="og:image" content="<%= ogImage %>">
+  <meta name="twitter:card" content="summary_large_image">
+  <% } %>
   <link rel="icon" href="/img/logo-cuadrado.png">
   <link rel="stylesheet" href="/css/output.css">
   <%# Fase 4: token CSRF disponible para cart.js/variant-selector.js sin
       tener que repetirlo como input oculto en cada form generado por JS
       (design.md D3 — header estándar, no dato dinámico peligroso). %>
   <meta name="csrf-token" content="<%= csrfToken %>">
+  <%# Fase 7 (design.md D-D, spec "JSON-LD Product on product detail"):
+      SIEMPRE `toScriptJson`, nunca `JSON.stringify` a secas — mismo motivo
+      que la tabla de disponibilidad de variantes (§3 CLAUDE.md). El nonce
+      queda listo para cuando la CSP de helmet exija `nonce` en vez de
+      `unsafe-inline` (todavía no aplicado en este proyecto). %>
+  <% if (typeof jsonLd !== 'undefined' && jsonLd) { %>
+  <script type="application/ld+json"<% if (typeof cspNonce !== 'undefined' && cspNonce) { %> nonce="<%= cspNonce %>"<% } %>><%- toScriptJson(jsonLd) %></script>
+  <% } %>
 </head>
 <body class="bg-bg text-text min-h-screen flex flex-col">
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-surface focus:text-text focus:p-3">Saltar al contenido</a>

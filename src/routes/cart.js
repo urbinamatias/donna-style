@@ -5,6 +5,7 @@
 const express = require('express');
 const variantsModel = require('../models/variants');
 const cart = require('../services/cart');
+const { buildPrivateSeo } = require('../services/seo');
 const config = require('../config/env');
 
 const router = express.Router();
@@ -52,7 +53,7 @@ router.get('/carrito', async (req, res, next) => {
 
     res.render('layouts/main', {
       view: '../pages/cart',
-      title: `Carrito — ${config.NOMBRE_TIENDA}`,
+      ...buildPrivateSeo({ title: `Carrito — ${config.NOMBRE_TIENDA}` }),
       summary,
       notices: notices.length > 0 ? notices : sessionNotices,
     });

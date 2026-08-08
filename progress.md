@@ -574,11 +574,92 @@ Windows tras cada ronda de QA.
 Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
 archive, Engram #387-#394.
 
-## Fases sin empezar
+### Fase 7 — Pulido: SEO 🔶 en curso (código listo, falta QA manual + cierre)
 
-7. **Pulido** — SEO (JSON-LD, sitemap.xml, robots.txt, OG tags — nada de
-   esto existe todavía), accesibilidad fina, performance, lightbox/zoom de
-   la ficha, páginas de error visualmente pulidas (`404.ejs`/`500.ejs`
+Slice de Fase 7 (de las varias que componen "Pulido", ver más abajo).
+Alcance: title/meta description/Open Graph por página, JSON-LD `Product` en
+ficha reflejando stock real, `sitemap.xml` y `robots.txt` dinámicos
+(§10.4 de `prompt.md`).
+
+**Decisiones tomadas**:
+1. `STORE_DESCRIPTION` (fallback de meta description cuando no hay
+   descripción propia, home incluida): *"Donna Style — moda femenina
+   online. Encontrá tu talle, elegí tu color y comprá fácil: coordinamos
+   todo por WhatsApp."* — excepción deliberada al "principio de ausencia"
+   (§4.5), confirmada por la dueña: mejor tener siempre description que
+   omitirla.
+2. Imagen OG/JSON-LD por defecto sin foto propia: `logo-cuadrado.png`
+   existente (no hay asset dedicado 1200×630 todavía).
+3. Moneda fija `ARS` vía constante `CURRENCY` en `format.js` (consolida
+   los dos hardcodes que ya existían en `format.js` y `cart.js`; el de
+   `cart.js` queda como literal con comentario — es JS de cliente sin
+   módulos, no puede importar la constante).
+4. `SITE_URL` sigue viniendo de `config/env.js` tal cual, sin dominio
+   hardcodeado — hoy default `localhost`. **Pendiente**: definir el
+   dominio real de producción en `.env` antes de deploy; toda URL
+   absoluta (OG, canonical, JSON-LD, `<loc>` del sitemap) depende de eso.
+5. **Deuda preexistente encontrada, no de esta fase**: `helmet`/CSP no
+   están instalados en el proyecto pese a que `CLAUDE.md` §3 los da por
+   sentados "a partir de la fase que sirva HTML con scripts" (esa fase ya
+   pasó). El JSON-LD quedó preparado con un `nonce` opcional
+   (`res.locals.cspNonce`) para cuando se agregue esa capa, pero agregar
+   CSP en sí queda fuera de este slice.
+
+**Implementado** (services/seo.js nuevo, wiring en public.js/cart.js/
+checkout.js, sitemap.js nuevo montado en app.js antes del router público,
+`findAllActiveSlugs` en el modelo de productos, slots de `<head>` en
+`main.ejs` vía `toScriptJson()` — mismo patrón seguro que la
+disponibilidad de variantes de Fase 4). Todos los tests en verde
+(`node --test` desde Windows, con `node db/migrate.js` + `node
+db/seed.js` corridos — el seed YA sembraba `whatsapp_admin`/`instagram`/
+`email_contacto`/`cuit`, un fallo intermitente reportado en QA era solo
+por DB sin sembrar, no bug de código). Un segundo fallo visto en una
+corrida (`countWithoutStock` con delta antes/después) desapareció al
+re-correr: flakiness preexistente por tests de archivos distintos
+compitiendo sobre la misma tabla `products` en Postgres real, agravado
+(no causado) por sumar 3 archivos de test nuevos en esta fase — no se
+tocó la función.
+
+**QA manual de la dueña, completado esta sesión** (checklist de 7 puntos:
+home, categoría, ficha de producto, carrito/checkout/pedido, sitemap,
+robots.txt, compartir en redes):
+1-6. Verificados en `localhost`, todos correctos: title/meta description/
+   canonical/OG por tipo de página, `noindex` en páginas privadas sin
+   OG/canonical, `/sitemap.xml` y `/robots.txt` con el contenido esperado.
+   JSON-LD `Product` validado en el Rich Results Test de Google (pestaña
+   "Code", HTML completo pegado — la pestaña "URL" no sirve con
+   `localhost`): 1 elemento válido detectado ("Buzo Oversize"), con 2
+   advertencias no críticas (`aggregateRating`/`review` faltantes, ambos
+   opcionales) — resultado esperado y correcto: la tienda no tiene sistema
+   de reseñas, así que no hay dato real que emitir ahí (mismo "principio
+   de ausencia" del resto del proyecto — nunca simular un rating falso).
+7. **Pendiente, documentado, no bloqueante para el cierre de esta fase**:
+   compartir en redes/WhatsApp (Facebook Sharing Debugger u equivalente)
+   no se pudo probar porque requiere una URL pública — con `SITE_URL`
+   apuntando a `localhost` los previsualizadores externos no pueden
+   traer la imagen. Queda para cuando haya dominio real o un túnel
+   (`ngrok`) antes del deploy — mismo punto ya anotado más arriba sobre
+   `SITE_URL`.
+
+`sdd-verify` corrido (Engram #402): 0 críticos, 2 advertencias — ambas
+resueltas o ya documentadas como aceptadas (ver abajo). 38/39 tasks
+completas (la única pendiente es el punto 7, diferido a propósito).
+Suite completa confirmada por la dueña desde Windows tras el verify:
+**368/368 tests en verde** (`node --test`, 34.2s) — cierra la advertencia
+que había quedado abierta sobre las suites de rutas (`sitemap`/`public`/
+`cart`/`checkout`) nunca ejecutadas de verdad en WSL por el bloqueo de
+`sharp` (§1 de `CLAUDE.md`); el verify ya las había validado por lectura
+estática, ahora hay evidencia de ejecución real también.
+
+Ciclo SDD (Engram): proposal → spec (#397) → design (#398) → tasks (#399)
+→ apply-progress (#400) → verify-report (#402). **Sin commitear
+todavía** (excepción de tamaño de PR aceptada por la dueña, ~650-750
+líneas, un solo PR). Siguiente paso: commit → `sdd-archive`.
+
+## Fases sin empezar (resto de "Pulido")
+
+7 (continuación). Accesibilidad fina, performance, lightbox/zoom de la
+   ficha, páginas de error visualmente pulidas (`404.ejs`/`500.ejs`
    existen pero son básicas), README de despliegue.
 
 ## Entorno / recordatorios operativos

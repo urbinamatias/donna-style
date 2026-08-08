@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { formatPrice, formatDate, toScriptJson } = require('../../src/services/format');
+const { formatPrice, formatDate, toScriptJson, CURRENCY } = require('../../src/services/format');
 
 test('formatPrice: formato es-AR con punto de miles y coma decimal', () => {
   assert.equal(formatPrice(18700), '$18.700,00');
@@ -24,6 +24,13 @@ test('formatDate: acepta string ISO además de Date', () => {
 test('toScriptJson: el resultado sigue siendo JSON válido y parseable', () => {
   const data = { size: 'M', color: 'Negro' };
   assert.deepEqual(JSON.parse(toScriptJson(data)), data);
+});
+
+// Fase 7 (design.md D-C): CURRENCY consolidada acá como única fuente de
+// verdad — formatPrice y seo.js (JSON-LD) la comparten, nunca un literal
+// 'ARS' repetido.
+test('CURRENCY: exporta el código de moneda ARS, usado por formatPrice internamente', () => {
+  assert.equal(CURRENCY, 'ARS');
 });
 
 test('toScriptJson: neutraliza un </script> embebido sin romper el JSON', () => {

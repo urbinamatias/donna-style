@@ -8,6 +8,7 @@ const productImagesModel = require('../models/product-images');
 const variantsModel = require('../models/variants');
 const carouselSlidesModel = require('../models/carousel-slides');
 const { computeAvailability, buildDecisionTable } = require('../services/availability');
+const { buildHomeSeo, buildCategorySeo, buildProductSeo, buildPrivateSeo, buildProductJsonLd } = require('../services/seo');
 const config = require('../config/env');
 
 const router = express.Router();
@@ -88,7 +89,7 @@ function sanitizeDescription(html) {
 function render404(req, res) {
   res.status(404).render('layouts/main', {
     view: '../pages/404',
-    title: `Página no encontrada — ${config.NOMBRE_TIENDA}`,
+    ...buildPrivateSeo({ title: `Página no encontrada — ${config.NOMBRE_TIENDA}` }),
   });
 }
 
@@ -101,7 +102,7 @@ router.get('/', async (req, res, next) => {
     const featured = await attachCardData(featuredRaw);
     res.render('layouts/main', {
       view: '../pages/home',
-      title: config.NOMBRE_TIENDA,
+      ...buildHomeSeo(config),
       featured,
       slides,
       // carousel.js solo se carga con 2+ slides (§5.3): con 1 o 0, la imagen
@@ -137,7 +138,8 @@ router.get('/productos/:productSlug', async (req, res, next) => {
 
     res.render('layouts/main', {
       view: '../pages/product',
-      title: `${product.name} — ${config.NOMBRE_TIENDA}`,
+      ...buildProductSeo(product, config),
+      jsonLd: buildProductJsonLd(product, config),
       product,
       related,
       bodyScripts,
@@ -166,7 +168,7 @@ async function renderCategoryListing(req, res, next, { category, categoryIds, br
 
     res.render('layouts/main', {
       view: '../pages/category',
-      title: `${category.name} — ${config.NOMBRE_TIENDA}`,
+      ...buildCategorySeo(category, { path: req.path, cfg: config }),
       category,
       breadcrumbs,
       products,

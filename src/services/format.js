@@ -1,13 +1,20 @@
 // Servicio puro de formato regional es-AR (§8 de prompt.md). Sin acceso a
 // DB: funciones puras, mismo patrón que availability.js (§9).
 
+// Fase 7 (design.md D-C): única fuente de verdad del código de moneda —
+// formatPrice y services/seo.js (JSON-LD Product.offers.priceCurrency) la
+// comparten, nunca un literal 'ARS' repetido en dos lugares. `cart.js`
+// (cliente, sin módulos) queda documentado como excepción — ver comentario
+// en src/public/js/cart.js.
+const CURRENCY = 'ARS';
+
 function formatPrice(amount) {
   // Intl inserta un espacio fino (U+00A0) entre el símbolo y el número en
   // es-AR ("$ 18.700,00"); §8 pide el formato compacto "$18.700,00" sin
   // espacio, así que se lo saca a mano después de formatear.
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'ARS',
+    currency: CURRENCY,
     minimumFractionDigits: 2,
   })
     .format(amount)
@@ -39,4 +46,4 @@ function toScriptJson(data) {
     .replace(/&/g, '\\u0026');
 }
 
-module.exports = { formatPrice, formatDate, toScriptJson };
+module.exports = { formatPrice, formatDate, toScriptJson, CURRENCY };

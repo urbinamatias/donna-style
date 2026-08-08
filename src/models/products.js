@@ -318,6 +318,18 @@ async function setCategories(productId, categoryIds, client = db) {
 // producto mixto (una talla en 0, otra con stock) NO cuenta. Un producto sin
 // ninguna variante tampoco cuenta: no hay nada que esté "en 0". `HAVING
 // bool_and(stock = 0)` expresa exactamente esa regla en una sola query.
+// Sitemap.xml (Fase 7, design.md D-F): query liviana sin paginar, SOLO
+// las dos columnas que necesita `<loc>`/`<lastmod>`. No reusa
+// `findAllForAdmin` a propósito — ese trae `full_count`/semántica de
+// paginación de admin y trunca en silencio una vez que el catálogo supera
+// el `perPage`, que en un endpoint público no es aceptable.
+async function findAllActiveSlugs() {
+  const { rows } = await db.query(
+    'SELECT slug, updated_at FROM products WHERE is_active = true ORDER BY updated_at DESC'
+  );
+  return rows;
+}
+
 async function countWithoutStock() {
   const { rows } = await db.query(
     `SELECT count(*)::int AS n FROM (
@@ -342,6 +354,7 @@ module.exports = {
   findBySlugWithDetails,
   findFeatured,
   findRelated,
+  findAllActiveSlugs,
   update,
   remove,
   hasOrders,
