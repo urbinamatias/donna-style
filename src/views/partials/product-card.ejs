@@ -1,11 +1,10 @@
 <%# ------------------------------------------------------------------
   Card de producto (§5.5). Recibe `product` ya "enriquecido" en la capa de
   rutas (attachCardData en public.js): { ...row, images, variants,
-  availability }. Selectores de talle/color: estáticos (sin re-fetch), la
-  interactividad real de "elegir talle → recalcula color" y el submit al
-  carrito quedan para la Fase 4 — acá solo se muestra el estado inicial
-  calculado con availability.js (mismo servicio que la ficha, §9). El botón
-  "Agregar" lleva el atributo nativo `disabled` a propósito.
+  availability }. Sin selector de talle/color ni form de agregar al carrito
+  (obs #406/#407): la card solo muestra precio de lista, precio con
+  transferencia/efectivo, valor de cuota, y un link "Ver producto" a la
+  ficha, donde vive la interacción real de variantes/stock.
 ------------------------------------------------------------------ %>
 <%
   const primaryImage = product.images.find((img) => img.is_primary) || product.images[0] || null;
@@ -13,17 +12,17 @@
   const discountPct = hasDiscount
     ? Math.round((1 - Number(product.base_price) / Number(product.compare_at_price)) * 100)
     : 0;
-  const inStockVariants = product.variants.filter((v) => v.stock > 0);
-  // QA (mismo criterio que la ficha): mostrar el selector si hay ejes
-  // cargados, no si hay más de una variante — con una sola combinación se
-  // ve un único botón ya seleccionado por eje, nunca oculto.
-  const showSelectors = product.availability.hasAnyStock && product.decisionTable.axes.length > 0;
   const defaultVariant = product.variants.find((v) =>
     Object.entries(product.availability.defaultSelection).every(([axis, val]) => v[axis] === val)
   );
   const effectivePrice = defaultVariant && defaultVariant.price_override !== null
     ? defaultVariant.price_override
     : product.base_price;
+  // D3 (design #407): transferencia/cuotas se calculan sobre `base_price`,
+  // nunca sobre `effectivePrice` — mostrar un incentivo atado a una
+  // variante arbitraria sin selector sería engañoso.
+  const transferPrice = computeTransferPrice(product.base_price);
+  const installmentValue = computeInstallmentValue(product.base_price);
 %>
 <article class="group/card flex h-full flex-col overflow-hidden rounded-md border border-border bg-surface">
   <a href="/productos/<%= product.slug %>"
@@ -70,63 +69,27 @@
     </h3>
 
     <div class="flex items-baseline gap-2">
-      <span class="font-semibold"><%= formatPrice(effectivePrice) %></span>
+      <span class="text-xl font-semibold"><%= formatPrice(effectivePrice) %></span>
       <% if (hasDiscount) { %>
         <span class="text-sm text-textMuted line-through"><%= formatPrice(product.compare_at_price) %></span>
       <% } %>
     </div>
 
-    <% if (product.availability.hasAnyStock) { %>
-      <%
-        // Fase 4: form real de agregar, resuelto server-side con el mismo
-        // criterio que `defaultVariant` de arriba — funciona sin JS
-        // (POST → 303 a /carrito); con JS, variant-selector.js reescribe
-        // los grupos de ejes y el hidden variant_id al cambiar selección.
-        const defaultKey = [
-          product.decisionTable.axes.indexOf('size') !== -1 ? (product.decisionTable.default.size || '') : '',
-          product.decisionTable.axes.indexOf('color') !== -1 ? (product.decisionTable.default.color || '') : '',
-        ].join('|');
-        const initialVariant = product.decisionTable.axes.length > 0
-          ? product.decisionTable.variants[defaultKey]
-          : product.decisionTable.variants[''];
-      %>
-      <form data-add-form data-variant-widget action="/carrito/agregar" method="post" class="flex flex-1 flex-col gap-2">
-        <script type="application/json" data-decision-table><%- toScriptJson(product.decisionTable) %></script>
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="hidden" name="variant_id" data-variant-id-input value="<%= initialVariant ? initialVariant.id : '' %>">
-
-        <% if (showSelectors) { %>
-          <div aria-live="polite" class="sr-only" data-variant-live-region></div>
-          <div class="flex flex-col gap-1">
-            <% ['size', 'color'].forEach(function (axis) { %>
-              <% if (product.decisionTable.values[axis] && product.decisionTable.values[axis].length > 0) { %>
-                <div class="flex flex-wrap gap-2" role="group" aria-label="<%= axis === 'size' ? 'Talle' : 'Color' %>" data-axis-group="<%= axis %>">
-                  <% product.decisionTable.values[axis].forEach(function (value) { %>
-                    <button
-                      type="button"
-                      aria-pressed="<%= product.decisionTable.default[axis] === value %>"
-                      class="min-h-11 min-w-11 rounded border px-3 py-2 text-sm <%= product.decisionTable.default[axis] === value ? 'border-[var(--brand)] font-semibold' : 'border-border' %>"
-                    ><%= value %></button>
-                  <% }) %>
-                </div>
-              <% } %>
-            <% }) %>
-          </div>
-        <% } %>
-
-        <div class="mt-auto flex flex-col gap-1 pt-2">
-          <p data-add-error aria-live="polite" class="text-xs font-medium text-error empty:hidden"></p>
-          <button type="submit" data-add-button class="w-full rounded px-3 py-2 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70" style="background: var(--brand-gradient);">
-            Agregar al carrito
-          </button>
-        </div>
-      </form>
-    <% } else { %>
-      <div class="mt-auto pt-2">
-        <button type="button" disabled class="w-full rounded px-3 py-2 text-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-70" style="background: var(--brand-gradient);">
-          Sin stock
-        </button>
-      </div>
+    <% if (transferPrice !== null) { %>
+      <p class="text-brandInk font-semibold">
+        <%= formatPrice(transferPrice) %>
+        <span class="text-xs text-textMuted font-normal">Efectivo/Transferencia</span>
+      </p>
     <% } %>
+
+    <% if (installmentValue !== null) { %>
+      <p class="text-sm text-textMuted">
+        6 cuotas sin interés de <%= formatPrice(installmentValue) %>
+      </p>
+    <% } %>
+
+    <a href="/productos/<%= product.slug %>" class="mt-auto block w-full rounded px-3 py-2 text-center text-sm font-semibold text-text" style="background: var(--brand-gradient);">
+      Ver producto
+    </a>
   </div>
 </article>

@@ -574,7 +574,7 @@ Windows tras cada ronda de QA.
 Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
 archive, Engram #387-#394.
 
-### Fase 7 — Pulido: SEO 🔶 en curso (código listo, falta QA manual + cierre)
+### Fase 7 — Pulido: SEO ✅ cerrada
 
 Slice de Fase 7 (de las varias que componen "Pulido", ver más abajo).
 Alcance: title/meta description/Open Graph por página, JSON-LD `Product` en
@@ -651,10 +651,82 @@ que había quedado abierta sobre las suites de rutas (`sitemap`/`public`/
 `sharp` (§1 de `CLAUDE.md`); el verify ya las había validado por lectura
 estática, ahora hay evidencia de ejecución real también.
 
-Ciclo SDD (Engram): proposal → spec (#397) → design (#398) → tasks (#399)
-→ apply-progress (#400) → verify-report (#402). **Sin commitear
-todavía** (excepción de tamaño de PR aceptada por la dueña, ~650-750
-líneas, un solo PR). Siguiente paso: commit → `sdd-archive`.
+Commiteado en `main` (`153c9ad`, 20 archivos, ~936 líneas — excepción de
+tamaño de PR aceptada por la dueña, un solo commit).
+
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #396-#403.
+
+### Fase 7 (continuación) — Catálogo: card informativa + transferencia/cuotas ✅ cerrada
+
+Cambio de diseño pedido por la dueña: la card de catálogo (home, categoría
+con filtros, relacionados) deja de permitir elegir talle/color y agregar al
+carrito inline — ese flujo queda exclusivamente en la ficha de producto
+(`product.ejs`, sin cambios). En su lugar, la card muestra:
+
+- Botón "Ver producto" (siempre navegable, incluso sin stock).
+- Precio con transferencia/efectivo: `base_price * 0.7` redondeado, con
+  aclaración textual del 30% OFF.
+- 6 cuotas sin interés: `base_price / 6` redondeado — sobre el precio SIN
+  el descuento de transferencia (son dos incentivos independientes).
+
+Servicio puro nuevo `src/services/pricing.js` (`computeTransferPrice`,
+`computeInstallmentValue`), mismo patrón sin DB que `availability.js`/
+`format.js`, expuesto vía `app.locals` en `src/app.js`. El badge "% OFF"
+preexistente (`compare_at_price`) no se tocó — es un concepto de negocio
+distinto (promoción cargada por la dueña) y convive, diferenciado
+visualmente, con el bloque nuevo.
+
+**Decisión de negocio confirmada**: `product.base_price` es el "Precio
+base" del panel admin — el precio de venta actual (post-promo), no un
+precio "pre-variante". El cálculo del 30%/cuotas siempre usa `base_price`,
+nunca `effectivePrice`/`price_override` de variante (evita ofrecer un
+incentivo atado a una variante que ya no se puede elegir desde la card).
+
+Tests: `test/services/pricing.test.js` (11 tests unitarios) +
+`test/routes/public.test.js` (2 tests de integración nuevos). Suite
+completa corrida por la dueña desde Windows: 380/381 en verde. El único
+fallo (`admin-settings.test.js`, preview de `wa.me` en
+`/admin/configuracion`) NO es un bug de código — es de estado de la DB:
+el propio `test.after` de ese archivo borra las filas de
+`whatsapp_admin`/`instagram`/`email_contacto`/`cuit` de `site_settings`
+al terminar, así que si corrés la suite sin resembrar, el siguiente `GET`
+arranca sin valor para mostrar el preview. Se soluciona con `node
+db/seed.js` antes de `node --test` (mismo síntoma intermitente que ya se
+había documentado en el cierre de Fase 7 SEO). No hace falta tocar
+código.
+
+**Ajuste visual tras QA de la dueña**: precio de lista pasa a `text-xl`
+(protagonista de la card, antes tenía el mismo tamaño que el precio de
+transferencia); el bloque de cuotas pasa de `text-xs` a `text-sm`
+(levemente más chico que el de transferencia, no minúsculo); el copy del
+bloque de transferencia se simplifica de "Precio con transferencia o
+efectivo (30% OFF)" a "Efectivo/Transferencia" (decisión de la dueña,
+prioriza el número grande sobre la aclaración textual del porcentaje).
+
+**Extensión a la ficha de producto**: la dueña pidió la misma información
+(precio efectivo/transferencia + cuotas) en `src/views/pages/product.ejs`
+— es donde se decide agregar al carrito, tiene que verse lo mismo que en
+el listado. Reutiliza `computeTransferPrice`/`computeInstallmentValue`
+(ya en `app.locals`) sobre `product.base_price`, mismo criterio D3 que la
+card. No se creó ningún servicio nuevo.
+
+**Fix de infraestructura de tests** (no relacionado al feature en sí):
+`package.json` script `test` pasa a `node --test --test-concurrency=1` —
+`countWithoutStock` mide un delta antes/después contra `products` en
+Postgres real, y con archivos de test corriendo en paralelo (default de
+`node --test`) otro archivo podía crear/borrar productos sin stock en el
+medio y romper el conteo. Correr con `npm test` (no `node --test` a
+secas) para que aplique el flag.
+
+Suite completa confirmada por la dueña desde Windows tras `node
+db/seed.js` + `npm run build:css` + `npm test`: **382/382 en verde**.
+
+Ciclo SDD completo: proposal → spec → design → tasks → apply, Engram
+#404-#412 (con una lección aprendida en el camino: reusar el mismo
+`topic_key` de un artefacto existente para guardar una decisión posterior
+lo sobrescribe en vez de agregarlo — hay que usar un topic_key propio
+para notas nuevas, o releer y reescribir el documento completo).
 
 ## Fases sin empezar (resto de "Pulido")
 
@@ -669,6 +741,21 @@ líneas, un solo PR). Siguiente paso: commit → `sdd-archive`.
 - Después de cambiar clases de Tailwind o `input.css`, hay que correr
   `npm run build:css` — el CSS no se recompila solo, y "todo sin estilo" es
   el síntoma clásico de olvidarse este paso.
+- Antes de correr la suite completa, resembrar con `node db/seed.js` si
+  ya se corrió antes: `test/routes/admin-settings.test.js` borra
+  `whatsapp_admin`/`instagram`/`email_contacto`/`cuit` de `site_settings`
+  en su `test.after`, y sin resembrar el test de preview de `wa.me` falla
+  (no es un bug de código, es estado de la DB).
+- **Correr los tests con `npm test`, no con `node --test` a secas.** El
+  script (`package.json`) fija `--test-concurrency=1`: varios archivos de
+  test escriben sobre las mismas tablas (`products`, `variants`) en el
+  mismo Postgres real, y algunos tests miden un delta ("cuántos productos
+  sin stock había antes vs. después") — con archivos corriendo en paralelo
+  (default de `node --test`), otro archivo puede crear/borrar productos
+  sin stock en el medio y romper ese conteo (`countWithoutStock`, visto
+  en QA). Correr serial es más lento pero determinístico; no se tocó la
+  lógica de los tests ni del modelo, el bug era de concurrencia de la
+  suite, no de código productivo.
 - `npm install` y `sanitize-html`/`nanoid` ya están instalados a esta
   altura — no hace falta volver a pedirlo salvo que se agregue una
   dependencia nueva.

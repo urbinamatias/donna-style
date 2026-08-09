@@ -11,6 +11,7 @@ const publicRouter = require('./routes/public');
 const categoriesModel = require('./models/categories');
 const siteSettingsModel = require('./models/site-settings');
 const { formatPrice, formatDate, toScriptJson } = require('./services/format');
+const { computeTransferPrice, computeInstallmentValue } = require('./services/pricing');
 const { statusBadge, transitionButtonClass } = require('./services/orders-status');
 const { imageSrc, imageAttrs, slideImageAttrs } = require('./services/image-urls');
 const { ensureToken, csrfProtection } = require('./middleware/csrf');
@@ -28,6 +29,11 @@ app.set('views', path.join(__dirname, 'views'));
 app.locals.formatPrice = formatPrice;
 app.locals.formatDate = formatDate;
 app.locals.toScriptJson = toScriptJson;
+// Precio con transferencia/efectivo (30% off) y valor de cuota (obs
+// #406/#407) sobre `product.base_price` — mismo patrón de helper puro
+// expuesto en app.locals que formatPrice, usado desde product-card.ejs.
+app.locals.computeTransferPrice = computeTransferPrice;
+app.locals.computeInstallmentValue = computeInstallmentValue;
 // Fase 6c: badge de estado de pedido, misma fuente de verdad que la
 // máquina de transiciones (services/orders-status.js) — nunca reimplementado
 // en la vista.

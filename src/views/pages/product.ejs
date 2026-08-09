@@ -34,6 +34,12 @@
     : product.base_price;
   const productUrl = `${storeConfig.SITE_URL}/productos/${product.slug}`;
   const shareText = `Mirá ${product.name} en ${storeConfig.NOMBRE_TIENDA}: ${productUrl}`;
+  // Igual que en la card de catálogo: transferencia/cuotas se calculan
+  // sobre `base_price`, nunca sobre `effectivePrice` (D3 del diseño de
+  // catalogo-card-precios-cuotas) — es donde se decide la compra, tiene
+  // que mostrar la misma info que ya vio en el listado.
+  const transferPrice = computeTransferPrice(product.base_price);
+  const installmentValue = computeInstallmentValue(product.base_price);
 %>
 <%- include('../partials/breadcrumbs', { breadcrumbs }) %>
 
@@ -92,6 +98,19 @@
         <span class="rounded border border-border-strong px-2 py-1 text-xs font-medium">Envío gratis</span>
       <% } %>
     </div>
+
+    <% if (transferPrice !== null) { %>
+      <p class="mb-1 text-brandInk font-semibold">
+        <%= formatPrice(transferPrice) %>
+        <span class="text-xs text-textMuted font-normal">Efectivo/Transferencia</span>
+      </p>
+    <% } %>
+
+    <% if (installmentValue !== null) { %>
+      <p class="mb-4 text-sm text-textMuted">
+        6 cuotas sin interés de <%= formatPrice(installmentValue) %>
+      </p>
+    <% } %>
 
     <% if (!product.availability.hasAnyStock) { %>
       <p class="mb-4 font-medium text-error">Sin stock</p>

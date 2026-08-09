@@ -86,3 +86,38 @@ test('GET /productos/:slug inexistente (404): noindex, sin canonical apuntando a
   assert.ok(html.includes('content="noindex"'));
   assert.ok(!html.includes('<link rel="canonical"'));
 });
+
+// Fase card catálogo (obs #406/#407/#408): la card ya no trae selector de
+// variante ni form de agregar al carrito — solo precio, transferencia,
+// cuotas y un link "Ver producto" a la ficha, con y sin stock.
+test('GET /: la card no incluye form de agregar ni tabla de decisión, y linkea a /productos/{slug}', async () => {
+  const res = await fetch(`${baseUrl}/`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(!html.includes('data-add-form'));
+  assert.ok(!html.includes('data-decision-table'));
+  assert.ok(/href="\/productos\/[^"]+"/.test(html));
+});
+
+test('GET /:categoria: la card no incluye form de agregar ni tabla de decisión, y linkea a /productos/{slug} con y sin stock', async () => {
+  const res = await fetch(`${baseUrl}/bodys`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(!html.includes('data-add-form'));
+  assert.ok(!html.includes('data-decision-table'));
+  assert.ok(html.includes('Ver producto'));
+  assert.ok(/href="\/productos\/[^"]+"/.test(html));
+});
+
+// La ficha (donde se decide agregar al carrito) muestra la misma info de
+// transferencia/cuotas que ya vio la clienta en el listado.
+test('GET /productos/:slug: muestra precio con Efectivo/Transferencia y cuotas sin interés', async () => {
+  const res = await fetch(`${baseUrl}/productos/body-canesu`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(html.includes('Efectivo/Transferencia'));
+  assert.ok(html.includes('cuotas sin interés de'));
+});
