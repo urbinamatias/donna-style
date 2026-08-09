@@ -13,7 +13,7 @@
     "seed": "node db/seed.js",
     "build:css": "tailwindcss -i src/public/css/input.css -o src/public/css/output.css --minify",
     "watch:css": "tailwindcss -i src/public/css/input.css -o src/public/css/output.css --watch",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "create-admin": "node db/scripts/create-admin.js"
   },
   "dependencies": {
