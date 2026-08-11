@@ -14,7 +14,7 @@
 <% if (!locals.hideFloatingUI) { %>
 <details data-menu class="relative">
   <summary aria-label="Buscar productos" aria-haspopup="true" aria-controls="header-search-panel"
-    class="flex list-none cursor-pointer items-center rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+    class="flex list-none cursor-pointer items-center rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]">
     <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6 fill-none stroke-current stroke-2">
       <circle cx="11" cy="11" r="7" />
       <path stroke-linecap="round" d="M20 20l-3.6-3.6" />
@@ -26,7 +26,7 @@
     <form method="get" action="/buscar" role="search" class="flex items-center gap-2">
       <label for="header-search-input" class="sr-only">Buscar productos</label>
       <input type="search" id="header-search-input" name="q" maxlength="100" placeholder="Buscar productos"
-             class="min-w-0 flex-1 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+             class="min-w-0 flex-1 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]">
       <button type="submit" class="rounded px-3 py-1.5 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Buscar</button>
     </form>
   </div>

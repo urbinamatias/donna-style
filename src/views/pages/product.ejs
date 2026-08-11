@@ -76,7 +76,7 @@
             data-alt="<%= img.alt_text %>"
             aria-label="Ver foto <%= i + 1 %> de <%= product.name %>"
             aria-current="<%= img === primaryImage %>"
-            class="h-16 w-12 shrink-0 overflow-hidden rounded border <%= img === primaryImage ? 'border-[var(--brand)]' : 'border-border' %>"
+            class="h-16 w-12 shrink-0 overflow-hidden rounded border <%= img === primaryImage ? 'border-2 border-[var(--brand-ink)]' : 'border-border' %>"
           >
             <img src="<%= thumbSrc %>" alt="" aria-hidden="true" class="h-full w-full object-cover">
           </button>
@@ -145,7 +145,7 @@
                       <button
                         type="button"
                         aria-pressed="<%= product.decisionTable.default[axis] === value %>"
-                        class="min-h-11 min-w-11 rounded border px-3 py-2 text-sm <%= product.decisionTable.default[axis] === value ? 'border-[var(--brand)] font-semibold' : 'border-border' %>"
+                        class="min-h-11 min-w-11 rounded border px-3 py-2 text-sm <%= product.decisionTable.default[axis] === value ? 'border-[var(--brand-ink)] font-semibold' : 'border-border' %>"
                       ><%= value %></button>
                     <% }) %>
                   </div>

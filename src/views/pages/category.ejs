@@ -33,15 +33,15 @@
   <form method="get" action="<%= basePath %>" class="mb-6 flex flex-wrap items-end gap-4 border-b border-border pb-6">
     <div class="flex flex-col gap-1">
       <label for="price_min" class="text-xs text-textMuted">Precio mínimo</label>
-      <input type="number" min="0" step="1" id="price_min" name="price_min" value="<%= priceMin !== null ? priceMin : '' %>" class="w-28 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+      <input type="number" min="0" step="1" id="price_min" name="price_min" value="<%= priceMin !== null ? priceMin : '' %>" class="w-28 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]">
     </div>
     <div class="flex flex-col gap-1">
       <label for="price_max" class="text-xs text-textMuted">Precio máximo</label>
-      <input type="number" min="0" step="1" id="price_max" name="price_max" value="<%= priceMax !== null ? priceMax : '' %>" class="w-28 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+      <input type="number" min="0" step="1" id="price_max" name="price_max" value="<%= priceMax !== null ? priceMax : '' %>" class="w-28 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]">
     </div>
     <div class="flex flex-col gap-1">
       <label for="sort" class="text-xs text-textMuted">Ordenar por</label>
-      <select id="sort" name="sort" class="rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+      <select id="sort" name="sort" class="rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]">
         <% sortOptions.forEach(function (opt) { %>
           <option value="<%= opt.value %>" <%= sort === opt.value ? 'selected' : '' %>><%= opt.label %></option>
         <% }) %>
@@ -66,7 +66,7 @@
       <nav aria-label="Paginación" class="mt-8 flex flex-wrap items-center justify-center gap-2">
         <% for (let p = 1; p <= totalPages; p++) { %>
           <% if (p === page) { %>
-            <span aria-current="page" class="rounded border border-[var(--brand)] px-3 py-1 text-sm font-semibold"><%= p %></span>
+            <span aria-current="page" class="rounded border border-[var(--brand-ink)] px-3 py-1 text-sm font-semibold"><%= p %></span>
           <% } else { %>
             <a href="<%= buildQuery({ page: p === 1 ? null : p }) %>" class="rounded border border-border px-3 py-1 text-sm hover:border-border-strong"><%= p %></a>
           <% } %>

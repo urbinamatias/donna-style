@@ -917,10 +917,74 @@ bugs de código):
 `npm test`), sin regresiones. SQL parametrizado verificado en ambas
 funciones nuevas (`ANY($1::bigint[])`, sin concatenación).
 
+### Fase 7 (continuación) — Accesibilidad fina (sitio público) ✅ cerrada
+
+Tercero de 5 ciclos SDD independientes de "Pulido". Alcance acotado a
+propósito al sitio público (el panel admin lo usa solo la dueña). Ciclo
+SDD completo: proposal → spec → design → tasks → apply → verify → archive,
+Engram #435-#441.
+
+**6 unidades implementadas**:
+1. **Focus trap real** en los drawers (nav + carrito), antes ausente —
+   `Tab` podía escaparse hacia el contenido de atrás.
+2. **Contraste AA de indicadores**: `--brand` (#F5AB56, 1.94:1, insuficiente
+   como único indicador) → `--brand-ink` (#6B3800, 9.58:1) en 18 anillos de
+   foco + bordes de selección de talle/color/miniatura/paginación.
+3. **Botón de pausa/play del carrusel** (antes autoplay sin forma de
+   detenerlo permanentemente).
+4. **Targets táctiles del carrusel**: dots de 10px → 24px.
+5. **Targets táctiles del carrito**: botones "Actualizar"/"Quitar" ~16px →
+   ≥24px, en los DOS orígenes (`cart.ejs` y el `<template>` de
+   `cart-drawer.ejs`).
+6. **Nombre accesible** del link-imagen de la card cuando `alt_text` viene
+   vacío (fallback a `product.name` + `sr-only` en la rama sin imagen).
+
+**Bug real de focus trap encontrado en QA en vivo, corregido por el
+orquestador tras el `apply`**: la primera versión de `computeNextFocusIndex`
+(`menu-animate.js`) solo interceptaba `Tab` en los bordes (primer/último
+foco) y dejaba el resto al comportamiento nativo del navegador, asumiendo
+que el próximo focusable nativo coincidía con el próximo de la lista
+calculada. Falso en la práctica: `nav-drawer.ejs` es hermano DOM directo de
+`search-toggle.ejs` (mismo contenedor en `header.ejs`), así que el `Tab`
+podía escaparse del drawer de navegación hacia el buscador — reproducible
+en PC y responsive, confirmado por la dueña. Fix: la función ahora SIEMPRE
+devuelve un índice explícito (nunca `null`) y el handler de `keydown`
+SIEMPRE controla el foco a mano (nunca delega al navegador) — mismo
+patrón que usan las librerías de focus trap establecidas.
+
+**Ajuste de UX confirmado por la dueña, no bug de accesibilidad**: el foco
+solo vuelve al botón que abrió el drawer (hamburguesa/carrito) cuando se
+cierra con **Escape** — no con click en el backdrop ni en el botón ✕
+(cerrar con mouse ya demuestra que el usuario no depende del foco de
+teclado; forzarlo ahí sería una sorpresa, no una ayuda).
+
+**2 ajustes visuales de QA, aplicados**: dots del carrusel de
+`--brand-ink`/`bg-surface` a `bg-black`/`bg-white` (con borde para que el
+dot blanco se vea sobre fondos claros) — pedido explícito, más simple y
+con mejor contraste que la propuesta original; espaciado de los botones
+"Actualizar"/"Quitar" del carrito reducido en ambos orígenes (drawer y
+página `/carrito`), se veían muy separados en desktop.
+
+**Hallazgo cerrado SIN cambio de código**: el espacio sobrante del
+carrusel con `object-contain` resultó ser la imagen de PRUEBA (4:3) siendo
+muy distinta a la proporción del contenedor (2.5:1 desktop) — no un bug,
+es la decisión deliberada de Fase 6d de nunca recortar piezas de diseño.
+Con las imágenes reales que suba la dueña (pensadas como banners
+horizontales) el espacio va a ser mínimo o imperceptible.
+
+**Decisión de testing**: sin `jsdom` en el proyecto (regla de no agregar
+dependencias sin justificar) — el focus trap y el guard de pausa del
+carrusel se testean vía funciones puras extraídas (`computeNextFocusIndex`,
+`shouldStartAutoplay`), mismo patrón que `availability.js`/`format.js`. El
+wiring real a DOM queda cubierto por QA manual en navegador.
+
+374 tests (360 pasan, 13 fallos preexistentes de `sharp`/WSL, sin
+relación), confirmados sin regresiones. `npm test` completo + QA visual
+confirmados por la dueña desde Windows tras las dos rondas de fixes.
+
 ## Fases sin empezar (resto de "Pulido")
 
-7 (continuación). Accesibilidad fina, lightbox/zoom de la ficha, README de
-   despliegue.
+7 (continuación). Lightbox/zoom de la ficha, README de despliegue.
 
 ## Entorno / recordatorios operativos
 

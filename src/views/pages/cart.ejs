@@ -47,19 +47,19 @@
           <p class="text-sm"><%= formatPrice(line.price) %> c/u</p>
 
           <div class="mt-2 flex flex-col gap-1">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
               <form data-cart-form action="/carrito/actualizar" method="post" class="flex items-center gap-2" novalidate>
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="variant_id" value="<%= line.variantId %>">
                 <label class="sr-only" for="qty-<%= line.variantId %>">Cantidad de <%= line.name %></label>
                 <input type="number" id="qty-<%= line.variantId %>" name="quantity" min="1" max="<%= line.stock %>" value="<%= line.quantity %>" class="w-16 rounded border border-border px-2 py-1 text-sm">
-                <button type="submit" class="text-xs font-medium text-brandInk underline">Actualizar</button>
+                <button type="submit" class="inline-flex items-center min-h-[24px] px-2 py-1 text-xs font-medium text-brandInk underline">Actualizar</button>
                 <p data-add-error aria-live="polite" class="text-xs font-medium text-error empty:hidden"></p>
               </form>
               <form data-cart-form action="/carrito/eliminar" method="post">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="variant_id" value="<%= line.variantId %>">
-                <button type="submit" class="text-xs font-medium text-error underline">Quitar</button>
+                <button type="submit" class="inline-flex items-center min-h-[24px] px-2 py-1 text-xs font-medium text-error underline">Quitar</button>
               </form>
             </div>
           </div>

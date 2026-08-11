@@ -17,7 +17,7 @@
     aria-label="Abrir carrito"
     aria-haspopup="true"
     aria-controls="cart-drawer-panel"
-    class="flex list-none cursor-pointer items-center rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
+    class="flex list-none cursor-pointer items-center rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]"
   >
     <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6 fill-none stroke-current stroke-2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.8h7.2a2 2 0 0 0 2-1.6L20 8H6" />
@@ -35,6 +35,8 @@
       id="cart-drawer-panel"
       data-menu-drawer
       tabindex="-1"
+      role="dialog"
+      aria-modal="true"
       aria-label="Carrito"
       class="relative z-10 ml-auto flex h-full w-full flex-col overflow-y-auto bg-surface shadow-lg sm:w-[420px]"
     >
@@ -49,7 +51,7 @@
           type="button"
           data-menu-close
           aria-label="Cerrar carrito"
-          class="rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
+          class="rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current stroke-2">
             <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
@@ -89,21 +91,21 @@
       <p data-line-name class="text-sm font-medium"></p>
       <p data-line-attrs class="text-xs text-textMuted"></p>
       <p data-line-notice class="text-xs font-medium text-error empty:hidden"></p>
-      <div class="mt-1 flex items-center justify-between">
+      <div class="mt-1 flex items-center gap-3">
         <form data-cart-form action="/carrito/actualizar" method="post" class="flex flex-col gap-1" novalidate>
           <div class="flex items-center gap-1">
             <input type="hidden" name="_csrf" data-form-csrf>
             <input type="hidden" name="variant_id" data-form-variant-id>
             <label class="sr-only" data-line-qty-label>Cantidad</label>
             <input type="number" name="quantity" min="1" data-line-qty class="w-14 rounded border border-border px-2 py-1 text-sm">
-            <button type="submit" class="text-xs font-medium text-brandInk underline">Actualizar</button>
+            <button type="submit" class="inline-flex items-center min-h-[24px] px-2 py-1 text-xs font-medium text-brandInk underline">Actualizar</button>
           </div>
           <p data-add-error aria-live="polite" class="text-xs font-medium text-error empty:hidden"></p>
         </form>
         <form data-cart-form action="/carrito/eliminar" method="post">
           <input type="hidden" name="_csrf" data-form-csrf>
           <input type="hidden" name="variant_id" data-form-variant-id>
-          <button type="submit" class="text-xs font-medium text-error underline">Quitar</button>
+          <button type="submit" class="inline-flex items-center min-h-[24px] px-2 py-1 text-xs font-medium text-error underline">Quitar</button>
         </form>
       </div>
     </div>

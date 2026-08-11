@@ -45,10 +45,12 @@
         src="<%= primaryAttrs.src %>"
         srcset="<%= primaryAttrs.srcset %>"
         sizes="<%= primaryAttrs.sizes %>"
-        alt="<%= primaryImage.alt_text %>"
+        alt="<%= (primaryImage.alt_text && primaryImage.alt_text.trim()) || product.name %>"
         loading="lazy"
         class="absolute inset-0 h-full w-full object-cover"
       >
+    <% } else { %>
+      <span class="sr-only"><%= product.name %></span>
     <% } %>
     <div class="absolute left-2 top-2 flex flex-col gap-1">
       <% if (hasDiscount) { %>
@@ -65,7 +67,7 @@
 
   <div class="flex flex-1 flex-col gap-2 p-3">
     <h3 class="text-sm font-medium">
-      <a href="/productos/<%= product.slug %>" class="hover:text-brandInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"><%= product.name %></a>
+      <a href="/productos/<%= product.slug %>" class="hover:text-brandInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]"><%= product.name %></a>
     </h3>
 
     <div class="flex items-baseline gap-2">

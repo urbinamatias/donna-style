@@ -15,7 +15,7 @@
     aria-label="Abrir menú"
     aria-haspopup="true"
     aria-controls="nav-drawer-panel"
-    class="-ml-2 flex list-none cursor-pointer items-center rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
+    class="-ml-2 flex list-none cursor-pointer items-center rounded p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]"
   >
     <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6 fill-none stroke-current stroke-2">
       <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16" />
@@ -28,12 +28,14 @@
       id="nav-drawer-panel"
       data-menu-drawer
       tabindex="-1"
+      role="dialog"
+      aria-modal="true"
       aria-label="Menú principal"
       class="relative z-10 flex h-full w-[85vw] max-w-xs flex-col overflow-y-auto bg-surface shadow-lg"
     >
       <ul class="flex-1">
         <li class="border-b border-border">
-          <a href="/" class="block px-4 py-3 text-sm font-medium hover:text-brandInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">Inicio</a>
+          <a href="/" class="block px-4 py-3 text-sm font-medium hover:text-brandInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]">Inicio</a>
         </li>
         <li>
           <%- include('./mega-menu', { menuTree }) %>
