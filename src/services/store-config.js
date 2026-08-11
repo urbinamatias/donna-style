@@ -59,4 +59,12 @@ async function resolve() {
   return merge(config, settings);
 }
 
-module.exports = { KEYS, merge, fromEnv, resolve };
+// Normaliza un número de WhatsApp a solo dígitos (design.md D6): `wa.me`
+// rechaza `+`, espacios y guiones, que la dueña puede tipear en el panel.
+// String vacía si `raw` no es un string útil -> falsy -> el FAB no se
+// renderiza (§4.5, principio de ausencia).
+function waDigits(raw) {
+  return typeof raw === 'string' ? raw.replace(/\D/g, '') : '';
+}
+
+module.exports = { KEYS, merge, fromEnv, resolve, waDigits };

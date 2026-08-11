@@ -67,6 +67,10 @@
     <%- include(view, locals) %>
   </main>
   <%- include('../partials/footer') %>
+  <%# CTA flotante de WhatsApp (design.md D6/D7): gateado por hideFloatingUI,
+      igual criterio que el magnifier del header — ausente en
+      carrito/checkout/pedido/admin. %>
+  <% if (!locals.hideFloatingUI) { %><%- include('../partials/whatsapp-fab') %><% } %>
   <script src="/js/menu-animate.js" defer></script>
   <%# Fase 4: cargados en toda página porque el drawer vive en el header
       (cart.js) y las cards de producto pueden aparecer en home/categoría/

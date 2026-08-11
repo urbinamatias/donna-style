@@ -48,6 +48,9 @@ app.locals.imageAttrs = imageAttrs;
 // Fase 6d: mismo criterio — único punto de acceso al esquema de URLs de
 // slides del carrusel, ninguna vista concatena `-d`/`-m`/ancho a mano.
 app.locals.slideImageAttrs = slideImageAttrs;
+// WhatsApp floating CTA (design.md D6): único punto que normaliza el
+// número a solo dígitos antes de armar el link `wa.me`.
+app.locals.waDigits = storeConfig.waDigits;
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
