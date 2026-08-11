@@ -13,7 +13,6 @@ module.exports = {
       },
       colors: {
         brand: 'var(--brand)',
-        brandTo: 'var(--brand-to)',
         brandInk: 'var(--brand-ink)',
         bg: 'var(--bg)',
         surface: 'var(--surface)',

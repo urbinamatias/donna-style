@@ -67,7 +67,7 @@ function statusBadge(status) {
 const TRANSITION_BUTTON_CLASSES = {
   confirmado: 'bg-success text-white',
   cancelado: 'bg-error text-white',
-  entregado: 'bg-brand text-white',
+  entregado: 'bg-brand text-brandInk',
   // "Marcar como Pendiente" (reabrir desde cancelado) quedaba como único
   // botón sin relleno (QA fase 6c) — mismo criterio ámbar que su badge, en
   // versión sólida para que se vea como una acción real, no un placeholder.
