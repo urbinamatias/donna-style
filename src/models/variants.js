@@ -62,6 +62,30 @@ async function findByProductId(productId) {
   return rows;
 }
 
+// Fase 7 (design.md D1/D4/D5, spec R5-R8): batching de N+1 para
+// `attachCardData`, mismo precedente que `findByIds` de acá abajo (guard de
+// array vacío, `ANY($1::bigint[])`), agrupado en Map<number, row[]>. Solo la
+// CLAVE se normaliza con Number() (D5) — `product_id` es BIGINT y `pg` lo
+// devuelve como STRING, sin Number() la clave nunca matchea
+// Number(product.id) y todas las cards quedan sin variantes, sin error
+// (R8). Las FILAS quedan crudas, mismo shape que `findByProductId`.
+async function findByProductIds(productIds) {
+  if (!productIds || productIds.length === 0) return new Map();
+  const { rows } = await db.query(
+    `SELECT * FROM variants
+      WHERE product_id = ANY($1::bigint[])
+      ORDER BY product_id, size_order, color`,
+    [productIds]
+  );
+  const byProduct = new Map();
+  for (const row of rows) {
+    const key = Number(row.product_id);
+    if (!byProduct.has(key)) byProduct.set(key, []);
+    byProduct.get(key).push(row);
+  }
+  return byProduct;
+}
+
 // Fase 4 (design.md): re-deriva variantes desde filas LIVE para el carrito.
 // Nunca confía en precio/stock enviado por el cliente (§CLAUDE.md) — cada
 // POST de carrito llama esto para revalidar contra la DB real. `ANY($1)`
@@ -206,6 +230,7 @@ async function incrementStock(variantId, quantity, client = db) {
 module.exports = {
   bulkCreate,
   findByProductId,
+  findByProductIds,
   findByIds,
   replaceForProduct,
   removeById,

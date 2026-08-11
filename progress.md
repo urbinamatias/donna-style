@@ -848,10 +848,79 @@ bloqueante en el verify, mismo criterio de precedentes del proyecto
 el test de render aislado en verde + un harness temporal de humo corrido
 durante `apply` que sí ejercitó un 500 real con Postgres caído.
 
+### Fase 7 (continuación) — Performance: cache headers, N+1, compression ✅ cerrada
+
+Segundo de 5 ciclos SDD independientes de "Pulido". Ciclo SDD completo:
+proposal → spec → design → tasks → apply → verify → archive, Engram
+#428-#433 (+archive-report).
+
+**Cache headers** en `express.static` (`src/app.js`), un solo mount con
+`setHeaders` que decide `Cache-Control` por prefijo de path (nuevo
+`src/services/cache-headers.js`, servicio puro sin DB, mismo patrón que
+`availability.js`): `/uploads/**` y `/fonts/**` → `max-age=1 año,
+immutable` (nombre de archivo opaco/fijo — reemplazar una fuente exige
+RENOMBRAR el archivo, nunca sobrescribirlo, o queda cache stale sin error
+visible); `/css/output.css`, `/js/*.js` y el resto (`/img/**`) →
+`max-age=300` (5 min), sin `immutable`.
+
+**Bug de plataforma encontrado y corregido en diseño, antes de escribir
+código**: `setHeaders(res, filePath)` recibe la ruta ABSOLUTA con el
+separador nativo del SO — en Windows (donde corre `npm run dev`) viene con
+`\`. Sin normalizar (`path.relative` + reemplazo de separador a `/`),
+NINGÚN prefijo matchea en el entorno real y todos los assets caen al
+bucket por defecto, en silencio, sin error. `normalizeRelPath` lo resuelve
+con el separador inyectable como parámetro, lo que permitió reproducir el
+caso Windows determinísticamente en un test corrido desde WSL.
+
+**`compression()`** agregada como dependencia nueva y primer middleware de
+la cadena (antes de `express.static`, si no los estáticos salen sin
+comprimir). Nota de mantenimiento documentada en el código: si el hosting
+final trae un reverse proxy con gzip/brotli propio, sacar esta línea para
+no comprimir dos veces — decisión pendiente hasta que el frente de README
+de despliegue defina el hosting real.
+
+**N+1 real corregido** en `attachCardData()` (`src/routes/public.js`, 4
+call sites: home/relacionados/búsqueda/categoría): de hasta 48
+round-trips a Postgres por página (2 queries × N productos) a 2 queries
+fijas siempre, vía `findByProductIds` nuevo en `product-images.js` y
+`variants.js` (mismo patrón `WHERE product_id = ANY($1::bigint[])` ya
+usado por `variantsModel.findByIds` desde Fase 4), agrupado en
+`Map<number, row[]>`.
+
+**Bug crítico de tipos, prevenido antes de implementar (no llegó a
+producción)**: `product_id` es `BIGINT` en Postgres, así que `pg` lo
+devuelve como STRING. Agrupar el batch con la clave cruda contra
+`product.id` (number) hubiera fallado el lookup SIEMPRE, en silencio —
+cada card habría renderizado `images: []`/`variants: []`, todo "sin
+stock", sin ningún error de servidor. Ambas funciones nuevas castean con
+`Number()` tanto al construir el `Map` como en el lookup del lado
+llamador (`src/routes/public.js`), con test dedicado que verifica que
+`map.get(String(id))` falla y `map.get(Number(id))` no.
+
+**QA post-`apply`, troubleshooting real de la dueña** (documentado, no
+bugs de código):
+1. Primer chequeo en DevTools no mostraba `Content-Encoding` — resultó ser
+   caché del navegador sirviendo una respuesta vieja; se resolvió con
+   "Disable cache" + hard reload.
+2. `curl -I` (HEAD) mostraba `Vary` pero sin `Content-Encoding` — correcto
+   y esperado, un HEAD no tiene body que comprimir.
+3. **Hallazgo no bloqueante**: la respuesta comprimida llega como
+   `Content-Encoding: br` (Brotli), no `gzip` — la versión de
+   `compression` instalada (`^1.7.4` resolvió a 1.8.1) negocia Brotli
+   cuando el cliente lo acepta (Chrome lo prefiere sobre gzip), y lo hace
+   correctamente vía `Vary: Accept-Encoding`. No es un bug, es mejor
+   resultado que el gzip que mencionaban spec/design como ejemplo
+   ilustrativo — anotado para no asumir "siempre gzip" en el futuro README
+   de despliegue o config de reverse proxy.
+
+360/360 tests confirmados en verde desde Windows (`npm install` +
+`npm test`), sin regresiones. SQL parametrizado verificado en ambas
+funciones nuevas (`ANY($1::bigint[])`, sin concatenación).
+
 ## Fases sin empezar (resto de "Pulido")
 
-7 (continuación). Accesibilidad fina, performance, lightbox/zoom de la
-   ficha, README de despliegue.
+7 (continuación). Accesibilidad fina, lightbox/zoom de la ficha, README de
+   despliegue.
 
 ## Entorno / recordatorios operativos
 

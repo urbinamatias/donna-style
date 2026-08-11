@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express');
+const compression = require('compression');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const healthRouter = require('./routes/health');
@@ -14,6 +15,7 @@ const { formatPrice, formatDate, toScriptJson } = require('./services/format');
 const { computeTransferPrice, computeInstallmentValue } = require('./services/pricing');
 const { statusBadge, transitionButtonClass } = require('./services/orders-status');
 const { imageSrc, imageAttrs, slideImageAttrs } = require('./services/image-urls');
+const { normalizeRelPath, resolveCacheControl } = require('./services/cache-headers');
 const { ensureToken, csrfProtection } = require('./middleware/csrf');
 const { floatingUi } = require('./middleware/floating-ui');
 const storeConfig = require('./services/store-config');
@@ -52,7 +54,30 @@ app.locals.slideImageAttrs = slideImageAttrs;
 // número a solo dígitos antes de armar el link `wa.me`.
 app.locals.waDigits = storeConfig.waDigits;
 
-app.use(express.static(path.join(__dirname, 'public')));
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
+// Fase 7 (design.md D7): PRIMER middleware — si va después de
+// `express.static`, los estáticos salen sin gzip. Antes de session/CSRF es
+// indistinto (solo envuelve res.write/end), así que se elige la posición
+// que no depende de nada.
+// Nota de mantenimiento: si el hosting final trae un reverse proxy con
+// gzip/brotli, sacar esta línea para no comprimir dos veces.
+app.use(compression());
+
+// Fase 7 (design.md D1/D2, spec R1-R3): un solo mount con `setHeaders` que
+// decide `Cache-Control` por prefijo de path (services/cache-headers.js) —
+// un solo lugar que decide TTLs, en vez de repetir mounts por bucket.
+app.use(
+  express.static(PUBLIC_DIR, {
+    setHeaders(res, filePath) {
+      // filePath es ABSOLUTO y con el separador NATIVO de la plataforma (en
+      // Windows, `\`) — normalizeRelPath lo normaliza a `/` antes del
+      // dispatch por prefijo.
+      const rel = normalizeRelPath(path.relative(PUBLIC_DIR, filePath));
+      res.setHeader('Cache-Control', resolveCacheControl(rel));
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 

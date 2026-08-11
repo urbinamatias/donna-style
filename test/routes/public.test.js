@@ -121,3 +121,21 @@ test('GET /productos/:slug: muestra precio con Efectivo/Transferencia y cuotas s
   assert.ok(html.includes('Efectivo/Transferencia'));
   assert.ok(html.includes('cuotas sin interés de'));
 });
+
+// Fase 7 (design.md, tasks.md 3.1): attachCardData pasa de 2N a 2 queries
+// (batching). Este test HTTP no corre en WSL (requiere app.js -> adminRouter
+// -> sharp, no disponible acá — ver la nota de test/routes/public.test.js:1
+// y test/routes/public-attach-card-data.test.js para la cobertura completa
+// de R5-R8 ejecutable desde WSL). Queda escrito para verificación cruzada en
+// Windows (`npm run dev`), donde sí se puede confirmar de punta a punta que
+// el listado renderiza igual que antes del batching.
+test('GET /: al menos un producto con stock real aparece disponible tras el batching (R8, detecta bug string-vs-number)', async () => {
+  const res = await fetch(`${baseUrl}/`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  // Si `Number()` se omitiera en el join de attachCardData, TODAS las cards
+  // quedarían sin variantes/imágenes y la tienda entera aparecería sin
+  // stock — buscamos evidencia positiva, no solo ausencia de error.
+  assert.ok(/href="\/productos\/[^"]+"/.test(html));
+  assert.ok(html.includes('<img'), 'al menos una imagen de producto debe renderizar (images no vacío)');
+});

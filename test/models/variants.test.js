@@ -211,6 +211,91 @@ test('variants.replaceForProduct: re-generar sin sku explícito da el mismo sku 
   }
 });
 
+// --- Fase 7 (design.md, tasks.md Phase 2): findByProductIds — mismo
+// contrato que product-images.js (R5-R8 de sdd/fase7-performance/spec).
+// Fixtures propios: A con 2 variantes (orden por size_order, color), B con
+// 1 variante, C sin variantes.
+test('variants.findByProductIds: fixtures Fase 7 + batch', async () => {
+  const stamp = Date.now();
+
+  const productA = await productsModel.create({
+    name: 'Fixture Batch Variants A',
+    slug: `fixture-batch-variants-a-${stamp}`,
+    basePrice: 1000,
+    isActive: false,
+  });
+  const productB = await productsModel.create({
+    name: 'Fixture Batch Variants B',
+    slug: `fixture-batch-variants-b-${stamp}`,
+    basePrice: 1000,
+    isActive: false,
+  });
+  const productC = await productsModel.create({
+    name: 'Fixture Batch Variants C',
+    slug: `fixture-batch-variants-c-${stamp}`,
+    basePrice: 1000,
+    isActive: false,
+  });
+
+  try {
+    const [varA1, varA2] = await variantsModel2.bulkCreate(productA.id, [
+      { size: 'L', sizeOrder: 2, color: 'Negro', stock: 1, sku: `fx7-a-l-${stamp}` },
+      { size: 'S', sizeOrder: 1, color: 'Blanco', stock: 3, sku: `fx7-a-s-${stamp}` },
+    ]);
+    const [varB1] = await variantsModel2.bulkCreate(productB.id, [
+      { size: 'M', sizeOrder: 1, color: 'Rojo', stock: 5, sku: `fx7-b-m-${stamp}` },
+    ]);
+
+    // Caso 1: array vacío → Map vacío, sin pegarle a la DB.
+    const dbPool = require('../../src/db/pool');
+    const originalQuery = dbPool.pool.query.bind(dbPool.pool);
+    let queryCalls = 0;
+    dbPool.pool.query = (...args) => {
+      queryCalls += 1;
+      return originalQuery(...args);
+    };
+    try {
+      const emptyMap = await variantsModel.findByProductIds([]);
+      assert.equal(emptyMap instanceof Map, true);
+      assert.equal(emptyMap.size, 0);
+      assert.equal(queryCalls, 0, 'array vacío no debe pegarle a la DB');
+    } finally {
+      dbPool.pool.query = originalQuery;
+    }
+
+    // Caso 2: batch con ids reales + un id sin filas (productC) + un id
+    // inexistente (gap) — cada producto recibe solo sus propias filas.
+    const byProduct = await variantsModel.findByProductIds([
+      productA.id,
+      productB.id,
+      productC.id,
+      999999999,
+    ]);
+
+    // Clave numérica (R8).
+    assert.equal(byProduct.get(Number(productA.id)).length, 2);
+    assert.equal(byProduct.get(String(productA.id)), undefined);
+
+    // Producto sin variantes: la clave no existe (R7).
+    assert.equal(byProduct.has(Number(productC.id)), false);
+    assert.equal(byProduct.has(999999999), false);
+
+    // Orden dentro del grupo: size_order, color — igual que findByProductId.
+    const rowsA = byProduct.get(Number(productA.id));
+    assert.equal(rowsA[0].id, varA2.id); // size_order 1 (S)
+    assert.equal(rowsA[1].id, varA1.id); // size_order 2 (L)
+
+    // Ningún cruce entre productos.
+    const rowsB = byProduct.get(Number(productB.id));
+    assert.equal(rowsB.length, 1);
+    assert.equal(rowsB[0].id, varB1.id);
+  } finally {
+    await pool.query('DELETE FROM products WHERE id = $1', [productA.id]);
+    await pool.query('DELETE FROM products WHERE id = $1', [productB.id]);
+    await pool.query('DELETE FROM products WHERE id = $1', [productC.id]);
+  }
+});
+
 test.after(async () => {
   if (fixtureProductA) await pool.query('DELETE FROM products WHERE id = $1', [fixtureProductA.id]);
   if (fixtureProductB) await pool.query('DELETE FROM products WHERE id = $1', [fixtureProductB.id]);

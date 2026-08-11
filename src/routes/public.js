@@ -31,26 +31,36 @@ function withEffectivePrice(variants, product) {
   return variants.map((v) => ({ ...v, price: v.price_override ?? product.base_price }));
 }
 
+// Fase 7 (design.md D4-D6, spec R5-R8): batching — 2 queries fijas en vez
+// de 2N. `findByProductIds` de cada modelo trae TODAS las filas de la
+// página en una sola query y las agrupa en Map<number, row[]>; acá solo se
+// hace el lookup por producto. `Number(product.id)` en AMBOS lados del
+// join (D5/D6): `product.id` también es BIGINT string desde pg, así que sin
+// normalizar el mismo bug de R8 aparece del lado del caller. Producto
+// duplicado en el input (relacionados/búsqueda) comparte la MISMA
+// referencia de array `images` entre las dos cards — seguro porque las
+// vistas solo leen.
 async function attachCardData(products) {
-  return Promise.all(
-    products.map(async (product) => {
-      const [images, rawVariants] = await Promise.all([
-        productImagesModel.findByProductId(product.id),
-        variantsModel.findByProductId(product.id),
-      ]);
-      const variants = withEffectivePrice(rawVariants, product);
-      return {
-        ...product,
-        images,
-        variants,
-        availability: computeAvailability(variants),
-        // Fase 4 (design.md D4): única fuente para el selector client-side,
-        // compuesta a partir de las mismas funciones que `availability` —
-        // nunca una segunda implementación de §3.2.
-        decisionTable: buildDecisionTable(variants),
-      };
-    })
-  );
+  if (!products || products.length === 0) return [];
+  const ids = products.map((p) => p.id);
+  const [imagesByProduct, variantsByProduct] = await Promise.all([
+    productImagesModel.findByProductIds(ids),
+    variantsModel.findByProductIds(ids),
+  ]);
+  return products.map((product) => {
+    const key = Number(product.id);
+    const variants = withEffectivePrice(variantsByProduct.get(key) || [], product);
+    return {
+      ...product,
+      images: imagesByProduct.get(key) || [],
+      variants,
+      availability: computeAvailability(variants),
+      // Fase 4 (design.md D4): única fuente para el selector client-side,
+      // compuesta a partir de las mismas funciones que `availability` —
+      // nunca una segunda implementación de §3.2.
+      decisionTable: buildDecisionTable(variants),
+    };
+  });
 }
 
 // Whitelist de sort espejada de products.js (§8.1: nunca se pasa el valor de
@@ -256,3 +266,8 @@ router.get('/:parentSlug/:childSlug', async (req, res, next) => {
 });
 
 module.exports = router;
+// Fase 7 (tasks.md 3.1): `attachCardData` no depende de `sharp`, así que se
+// testea directo contra Postgres real sin pasar por `app.js`/supertest
+// (ver test/routes/public-attach-card-data.test.js). Los 4 call sites de
+// arriba siguen usando el router — este export es solo para testing.
+module.exports.attachCardData = attachCardData;

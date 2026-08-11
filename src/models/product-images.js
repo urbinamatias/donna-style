@@ -36,6 +36,31 @@ async function findByProductId(productId) {
   return rows;
 }
 
+// Fase 7 (design.md D1/D4/D5, spec R5-R8): batching de N+1 para
+// `attachCardData` — precedente EXACTO de `variantsModel.findByIds`
+// (variants.js:69-89): guard de array vacío, `ANY($1::bigint[])`, agrupado
+// en Map<number, row[]>. Solo la CLAVE del Map se normaliza con Number()
+// (D5): `product_id` es BIGINT y `pg` lo devuelve como STRING — sin
+// Number() la clave nunca matchea `Number(product.id)` y TODAS las cards
+// quedan vacías, sin error (R8). Las FILAS quedan crudas: `attachCardData`
+// ya las consume tal cual las devuelve `findByProductId`.
+async function findByProductIds(productIds) {
+  if (!productIds || productIds.length === 0) return new Map();
+  const { rows } = await db.query(
+    `SELECT * FROM product_images
+      WHERE product_id = ANY($1::bigint[])
+      ORDER BY product_id, is_primary DESC, sort_order`,
+    [productIds]
+  );
+  const byProduct = new Map();
+  for (const row of rows) {
+    const key = Number(row.product_id);
+    if (!byProduct.has(key)) byProduct.set(key, []);
+    byProduct.get(key).push(row);
+  }
+  return byProduct;
+}
+
 // D7 (spec "Deleting the last image of an active product is blocked"):
 // política de aplicación pura, mismo patrón que hasOrders/hasProducts de
 // 6a — nunca se delega a una constraint de DB porque el mensaje debe ser
@@ -146,6 +171,7 @@ async function remove(imageId) {
 module.exports = {
   bulkCreate,
   findByProductId,
+  findByProductIds,
   canDeleteImage,
   reorderIds,
   updateAltText,

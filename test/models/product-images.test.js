@@ -185,3 +185,97 @@ test('reorder: persiste sort_order en la DB', async () => {
 
   await productsModel.remove(product.id);
 });
+
+// --- Fase 7 (design.md, tasks.md Phase 1): findByProductIds — batching de
+// N+1 en attachCardData. Mismo precedente que variantsModel.findByIds
+// (guard de array vacío, ANY($1::bigint[]), normalización Number() de la
+// CLAVE del Map — R5-R8 de sdd/fase7-performance/spec). Fixtures propios,
+// tres productos: A con 2 imágenes (una primaria), B con 1 imagen, C sin
+// imágenes — para poder aserts exactos sin depender del seed real.
+test('findByProductIds: fixtures Fase 7 + batch', async () => {
+  const productsModel = require('../../src/models/products');
+  const stamp = Date.now();
+
+  const productA = await productsModel.create({
+    name: 'Fixture Batch Images A',
+    slug: `fixture-batch-images-a-${stamp}`,
+    basePrice: 1000,
+    isActive: false,
+  });
+  const productB = await productsModel.create({
+    name: 'Fixture Batch Images B',
+    slug: `fixture-batch-images-b-${stamp}`,
+    basePrice: 1000,
+    isActive: false,
+  });
+  const productC = await productsModel.create({
+    name: 'Fixture Batch Images C',
+    slug: `fixture-batch-images-c-${stamp}`,
+    basePrice: 1000,
+    isActive: false,
+  });
+
+  try {
+    const [imgA1, imgA2] = await productImagesModel.bulkCreate(productA.id, [
+      { filename: `fx7-a1-${stamp}`, altText: 'A1', sortOrder: 1, isPrimary: false },
+      { filename: `fx7-a2-${stamp}`, altText: 'A2 primaria', sortOrder: 0, isPrimary: true },
+    ]);
+    const [imgB1] = await productImagesModel.bulkCreate(productB.id, [
+      { filename: `fx7-b1-${stamp}`, altText: 'B1', sortOrder: 0, isPrimary: true },
+    ]);
+
+    // Caso 1: array vacío → Map vacío, sin pegarle a la DB (mismo patrón que
+    // findByIds([]) de variants.js). Se prueba con un espía sobre pool.query
+    // para demostrar que la query real nunca se ejecuta.
+    const dbPool = require('../../src/db/pool');
+    const originalQuery = dbPool.pool.query.bind(dbPool.pool);
+    let queryCalls = 0;
+    dbPool.pool.query = (...args) => {
+      queryCalls += 1;
+      return originalQuery(...args);
+    };
+    try {
+      const emptyMap = await productImagesModel.findByProductIds([]);
+      assert.equal(emptyMap instanceof Map, true);
+      assert.equal(emptyMap.size, 0);
+      assert.equal(queryCalls, 0, 'array vacío no debe pegarle a la DB');
+    } finally {
+      dbPool.pool.query = originalQuery;
+    }
+
+    // Caso 2: batch con ids reales, incluyendo un id sin filas (productC) y
+    // un id con gap (999999999, inexistente) — cada producto recibe solo sus
+    // propias filas, nunca cruzadas (R6 scenario 2).
+    const byProduct = await productImagesModel.findByProductIds([
+      productA.id,
+      productB.id,
+      productC.id,
+      999999999,
+    ]);
+
+    // Clave numérica (R8): map.get(Number(id)) trae filas, map.get(String(id)) no.
+    assert.equal(byProduct.get(Number(productA.id)).length, 2);
+    assert.equal(byProduct.get(String(productA.id)), undefined);
+
+    // Producto sin imágenes: la clave simplemente no existe (R7 — el caller
+    // resuelve con `|| []`, no el modelo).
+    assert.equal(byProduct.has(Number(productC.id)), false);
+    assert.equal(byProduct.has(999999999), false);
+
+    // Orden dentro del grupo: la primaria va primero, igual que
+    // findByProductId singular (R6).
+    const rowsA = byProduct.get(Number(productA.id));
+    assert.equal(rowsA[0].id, imgA2.id);
+    assert.equal(rowsA[0].is_primary, true);
+    assert.equal(rowsA[1].id, imgA1.id);
+
+    // Ningún cruce entre productos (gap de ids no contiguos).
+    const rowsB = byProduct.get(Number(productB.id));
+    assert.equal(rowsB.length, 1);
+    assert.equal(rowsB[0].id, imgB1.id);
+  } finally {
+    await productsModel.remove(productA.id);
+    await productsModel.remove(productB.id);
+    await productsModel.remove(productC.id);
+  }
+});
