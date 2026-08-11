@@ -77,9 +77,9 @@ test('setup fixtures Fase 6c', async () => {
   fixtureVariants = { a: aVariants, b: bVariants };
 });
 
-test('variants.findAllForAdmin: filtro combinado producto + bajo stock (spec "Both filters combined")', async () => {
+test('variants.findAllForAdmin: filtro combinado nombre de producto + bajo stock (spec "Both filters combined")', async () => {
   const { rows, total } = await variantsModel.findAllForAdmin({
-    productId: fixtureProductA.id,
+    q: fixtureProductA.name,
     lowStock: true,
     page: 1,
     perPage: 100,
@@ -92,12 +92,44 @@ test('variants.findAllForAdmin: filtro combinado producto + bajo stock (spec "Bo
 
 test('variants.findAllForAdmin: sin filtro bajo trae las 3 variantes del producto A', async () => {
   const { rows, total } = await variantsModel.findAllForAdmin({
-    productId: fixtureProductA.id,
+    q: fixtureProductA.name,
     page: 1,
     perPage: 100,
   });
   assert.equal(total, 3);
   assert.equal(rows.length, 3);
+});
+
+// QA: se saca el combobox de productos (ids sin ordenar, confuso) y se
+// reemplaza por búsqueda de texto — mismo criterio que el buscador público.
+test('variants.findAllForAdmin: q parcial/case-insensitive matchea por nombre de producto, sin matchear otros productos con prefijo compartido', async () => {
+  const { rows, total } = await variantsModel.findAllForAdmin({
+    q: 'stock a', // minúsculas, fragmento del medio de "Fixture Stock A"
+    page: 1,
+    perPage: 100,
+  });
+  assert.equal(total, 3);
+  assert.ok(rows.every((r) => r.product_name === fixtureProductA.name));
+});
+
+test('variants.findAllForAdmin: q sin coincidencias trae lista vacía, nunca rompe', async () => {
+  const { rows, total } = await variantsModel.findAllForAdmin({
+    q: 'zzz-no-existe-zzz',
+    page: 1,
+    perPage: 100,
+  });
+  assert.equal(total, 0);
+  assert.deepEqual(rows, []);
+});
+
+test('variants.findAllForAdmin: q con % _ \\ se trata como texto literal, no como wildcard', async () => {
+  const { rows, total } = await variantsModel.findAllForAdmin({
+    q: '%_\\',
+    page: 1,
+    perPage: 100,
+  });
+  assert.equal(total, 0);
+  assert.deepEqual(rows, []);
 });
 
 test('variants.updateStockBulk: escribe solo las filas dadas y devuelve la cantidad', async () => {

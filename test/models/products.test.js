@@ -80,6 +80,44 @@ test('products.findAllForAdmin: sin filtro de categoría (categoryIds null) trae
   assert.ok(rows.length > 0);
 });
 
+// QA: buscador por nombre en el panel de Productos (mismo criterio que el
+// buscador público, design.md D3), combinable con estado/categoría.
+test('products.findAllForAdmin: q parcial/case-insensitive/con acentos matchea por nombre', async () => {
+  const { rows } = await productsModel.findAllForAdmin({ q: 'canesu', page: 1, perPage: 100 });
+  const slugs = rows.map((p) => p.slug);
+  assert.ok(slugs.includes('body-canesu'));
+  assert.ok(!slugs.includes('remera-taylor'));
+});
+
+test('products.findAllForAdmin: q sin coincidencias trae lista vacía, nunca rompe', async () => {
+  const { rows } = await productsModel.findAllForAdmin({ q: 'zzz-no-existe-zzz', page: 1, perPage: 100 });
+  assert.deepEqual(rows, []);
+});
+
+test('products.findAllForAdmin: q con % _ \\ se trata como texto literal, no como wildcard', async () => {
+  const { rows } = await productsModel.findAllForAdmin({ q: '%_\\', page: 1, perPage: 100 });
+  assert.deepEqual(rows, []);
+});
+
+test('products.findAllForAdmin: q combinado con categoryIds aplica ambos filtros a la vez', async () => {
+  const leaf = await categoriesModel.findBySlug('bodys');
+  const { rows } = await productsModel.findAllForAdmin({
+    q: 'canesu',
+    categoryIds: [leaf.id],
+    page: 1,
+    perPage: 100,
+  });
+  assert.ok(rows.map((p) => p.slug).includes('body-canesu'));
+
+  const { rows: otherLeaf } = await productsModel.findAllForAdmin({
+    q: 'canesu',
+    categoryIds: [(await categoriesModel.findBySlug('partes-de-abajo')).id],
+    page: 1,
+    perPage: 100,
+  });
+  assert.ok(!otherLeaf.map((p) => p.slug).includes('body-canesu'));
+});
+
 // --- Fase 6a: hasOrders, update/remove tx-aware, slug freeze ---------------
 // Cada test crea sus propias filas (producto/variante/pedido de prueba) y
 // las limpia, para no depender de qué trae el seed ni pisar otros tests.

@@ -1,8 +1,11 @@
 <%# Panel de stock (Fase 6c, spec admin-stock). Un solo form de bulk-edit:
   cada fila trae un input de stock + un hidden con el valor "original" tal
   como se renderizó esta request (la ruta solo persiste filas donde ambos
-  difieren, spec "Partial edit"). Los filtros producto/bajo se repiten como
-  hidden para volver a la misma URL filtrada tras el POST (PRG).
+  difieren, spec "Partial edit"). Los filtros q/bajo se repiten como hidden
+  para volver a la misma URL filtrada tras el POST (PRG). Filtro por nombre
+  de producto en vez de combobox de ids (QA: una lista de ids sin ordenar no
+  servía para encontrar nada) — live-filter.js aplica en vivo tipeando o
+  tildando "Solo stock bajo", sin botón "Filtrar".
 
   QA fase 6c: "Guardar" vivía al final de la tabla, la dueña tenía que bajar
   del todo para encontrarlo. Ahora vive en la misma barra de filtros (mismo
@@ -17,30 +20,24 @@
     <% } %>
   </div>
 
-  <form method="GET" action="/admin/stock" class="flex flex-wrap items-center gap-3 rounded-lg border-2 border-border bg-surface p-3 text-base">
-    <select name="producto" class="rounded border border-border px-2 py-1.5 text-base">
-      <option value="">Todos los productos</option>
-      <% products.forEach(function (p) { %>
-        <option value="<%= p.id %>" <%= String(filters.producto) === String(p.id) ? 'selected' : '' %>><%= p.name %></option>
-      <% }) %>
-    </select>
+  <form method="GET" action="/admin/stock" data-live-filter class="flex flex-wrap items-center gap-3 rounded-lg border-2 border-border bg-surface p-3 text-base">
+    <label class="sr-only" for="stock-filter-q">Buscar por producto</label>
+    <input type="search" id="stock-filter-q" name="q" value="<%= filters.q %>" maxlength="100"
+           placeholder="Buscar por producto..." data-live-filter-debounce
+           class="w-full sm:w-auto sm:min-w-[12rem] sm:flex-1 rounded border border-border px-2 py-1.5 text-base">
     <label class="flex items-center gap-2">
       <input type="checkbox" name="bajo" value="1" <%= filters.bajo === '1' ? 'checked' : '' %>>
       Solo stock bajo
     </label>
-    <button type="submit" class="rounded-lg border-2 border-borderStrong px-4 py-1.5 text-base font-medium">Filtrar</button>
+    <noscript><button type="submit" class="rounded-lg border-2 border-borderStrong px-4 py-1.5 text-base font-medium">Filtrar</button></noscript>
   </form>
-
-  <% if (invalidFilterNotice) { %>
-    <p role="status" class="rounded-lg border-2 border-error bg-white px-4 py-3 text-base text-error"><%= invalidFilterNotice %></p>
-  <% } %>
 
   <% if (variants.length === 0) { %>
     <p class="text-base text-textMuted">No hay variantes para mostrar con este filtro.</p>
   <% } else { %>
     <form method="POST" action="/admin/stock" id="stock-form">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="producto" value="<%= filters.producto %>">
+      <input type="hidden" name="q" value="<%= filters.q %>">
       <input type="hidden" name="bajo" value="<%= filters.bajo %>">
 
       <div class="overflow-x-auto rounded-lg border-2 border-border">
@@ -78,3 +75,4 @@
     </form>
   <% } %>
 </div>
+<script src="/js/live-filter.js" defer></script>

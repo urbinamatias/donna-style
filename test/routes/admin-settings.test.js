@@ -29,6 +29,13 @@ test.before(async () => {
     [email, passwordHash]
   );
   testAdmin = rows[0];
+
+  // Semilla propia en vez de depender de `node db/seed.js` ya corrido: este
+  // archivo no debe asumir estado externo. Sin esto, el GET inicial (preview
+  // wa.me) fallaba si otro test/corrida previa había vaciado site_settings
+  // sin resembrar — test.after ya limpia estas 4 claves al final, así que
+  // sembrarlas acá es seguro y deja el archivo autocontenido.
+  await siteSettingsModel.set('whatsapp_admin', '5493517505083');
 });
 
 test.after(async () => {

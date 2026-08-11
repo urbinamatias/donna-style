@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../../src/db/pool');
 const app = require('../../src/app');
+const productsModel = require('../../src/models/products');
 
 let server;
 let baseUrl;
@@ -278,4 +279,68 @@ test('borrar producto referenciado por un pedido es rechazado, historial intacto
   } finally {
     await pool.query('DELETE FROM orders WHERE id = $1', [orderRows[0].id]);
   }
+});
+
+// QA: se saca el combobox "Productos" del panel de Stock y se agrega un
+// buscador por nombre en vivo (mismo criterio que el buscador público,
+// design.md D3) acá en Productos, reemplazando el botón "Filtrar" por
+// auto-submit del form (change en los combobox, debounce en el texto).
+test('GET /admin/productos?q=: matchea por nombre, parcial/case-insensitive/con acentos, combinable con estado y categoría', async () => {
+  const { cookie } = await loginSession();
+  const stamp = Date.now();
+  const product = await productsModel.create({
+    name: `Campéra Búsqueda Admin ${stamp}`,
+    slug: `campera-busqueda-admin-${stamp}`,
+    basePrice: 5000,
+    isActive: false, // el filtro de este test pide estado=inactivos
+  });
+  createdProductIds.push(product.id);
+  await productsModel.setCategories(product.id, [testCategoryId]);
+
+  const fragment = 'campera busqueda'; // minúsculas y sin acentos a propósito
+  const res = await fetch(
+    `${baseUrl}/admin/productos?q=${encodeURIComponent(fragment)}&estado=inactivos&categoria_id=${testCategoryId}`,
+    { headers: { cookie } }
+  );
+  const body = await res.text();
+  assert.equal(res.status, 200);
+  assert.match(body, new RegExp(product.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
+test('GET /admin/productos?q=: término sin resultados responde 200 con el estado vacío, nunca 500', async () => {
+  const { cookie } = await loginSession();
+  const res = await fetch(`${baseUrl}/admin/productos?q=${encodeURIComponent('zzz-no-existe-zzz')}`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.match(body, /No hay productos con ese filtro\./);
+});
+
+test('GET /admin/productos?q=: % _ \\ se tratan como texto literal, nunca rompen la query', async () => {
+  const { cookie } = await loginSession();
+  const res = await fetch(`${baseUrl}/admin/productos?q=${encodeURIComponent('%_\\')}`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+});
+
+test('GET /admin/productos?q=: término de más de 100 caracteres no rompe (se recorta, spec normalizeTerm)', async () => {
+  const { cookie } = await loginSession();
+  const res = await fetch(`${baseUrl}/admin/productos?q=${encodeURIComponent('a'.repeat(500))}`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 200);
+});
+
+test('GET /admin/productos?q=: vacío, ausente o solo espacios no filtra (mismo resultado que sin query)', async () => {
+  const { cookie } = await loginSession();
+  const noQuery = await fetch(`${baseUrl}/admin/productos`, { headers: { cookie } });
+  const blankQuery = await fetch(`${baseUrl}/admin/productos?q=${encodeURIComponent('   ')}`, { headers: { cookie } });
+  assert.equal(noQuery.status, 200);
+  assert.equal(blankQuery.status, 200);
+});
+
+test('GET /admin/productos?q=: array en el query string (?q=a&q=b) nunca rompe, se trata como sin filtro', async () => {
+  const { cookie } = await loginSession();
+  const res = await fetch(`${baseUrl}/admin/productos?q=a&q=b`, { headers: { cookie } });
+  assert.equal(res.status, 200);
 });

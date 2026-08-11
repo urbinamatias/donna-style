@@ -4,34 +4,15 @@
 // para el aviso post-redirect).
 const express = require('express');
 const variantsModel = require('../../models/variants');
-const productsModel = require('../../models/products');
 const { withTransaction } = require('../../db/pool');
+const { normalizeTerm } = require('../../services/search');
 const config = require('../../config/env');
 
 const router = express.Router();
 
-// Resuelve el filtro `?producto=`. Nunca deja pasar un valor no-numérico a
-// la query SQL (evitaría un 500 por cast inválido de bigint) — un id
-// inválido o inexistente se trata igual: resultado vacío + aviso, jamás un
-// error de servidor (spec "Unknown or invalid product filter").
-async function resolveProductFilter(rawProductoId) {
-  if (rawProductoId === undefined || rawProductoId === null || rawProductoId === '') {
-    return { productId: null, invalid: false };
-  }
-  const parsed = Number(rawProductoId);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return { productId: null, invalid: true };
-  }
-  const product = await productsModel.findById(parsed);
-  if (!product) {
-    return { productId: null, invalid: true };
-  }
-  return { productId: parsed, invalid: false };
-}
-
-function buildRedirectQuery(producto, bajo) {
+function buildRedirectQuery(q, bajo) {
   const params = new URLSearchParams();
-  if (producto) params.set('producto', producto);
+  if (q) params.set('q', q);
   if (bajo) params.set('bajo', bajo);
   const qs = params.toString();
   return qs ? `/admin/stock?${qs}` : '/admin/stock';
@@ -40,23 +21,15 @@ function buildRedirectQuery(producto, bajo) {
 router.get('/admin/stock', async (req, res, next) => {
   try {
     const lowStock = req.query.bajo === '1';
-    const { productId, invalid } = await resolveProductFilter(req.query.producto);
+    const q = normalizeTerm(req.query.q);
 
-    let rows = [];
-    if (!invalid) {
-      const result = await variantsModel.findAllForAdmin({ productId, lowStock, page: 1, perPage: 500 });
-      rows = result.rows;
-    }
-
-    const { rows: products } = await productsModel.findAllForAdmin({ page: 1, perPage: 1000 });
+    const { rows } = await variantsModel.findAllForAdmin({ q: q || null, lowStock, page: 1, perPage: 500 });
 
     res.render('admin/layouts/admin', {
       view: '../stock/list',
       title: `Stock — ${config.NOMBRE_TIENDA}`,
       variants: rows,
-      products,
-      filters: { producto: req.query.producto || '', bajo: lowStock ? '1' : '' },
-      invalidFilterNotice: invalid ? 'No se encontró el producto filtrado.' : null,
+      filters: { q, bajo: lowStock ? '1' : '' },
     });
   } catch (err) {
     next(err);
@@ -85,7 +58,7 @@ router.post('/admin/stock', async (req, res, next) => {
   try {
     const stockRaw = req.body.stock || {};
     const originalRaw = req.body.original || {};
-    const redirectUrl = buildRedirectQuery(req.body.producto, req.body.bajo);
+    const redirectUrl = buildRedirectQuery(req.body.q, req.body.bajo);
 
     const ids = Object.keys(stockRaw);
     const toApply = [];

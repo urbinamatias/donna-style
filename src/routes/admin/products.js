@@ -10,6 +10,7 @@ const productImagesModel = require('../../models/product-images');
 const { uploadImagesForProduct, csrfGuardOrRespond } = require('./product-images');
 const { upload, mapMulterError, MAX_FILES } = require('../../middleware/upload');
 const { withTransaction } = require('../../db/pool');
+const { normalizeTerm } = require('../../services/search');
 const config = require('../../config/env');
 
 const router = express.Router();
@@ -98,6 +99,7 @@ router.get('/admin/productos', async (req, res, next) => {
     const isActive = req.query.estado === 'activos' ? true : req.query.estado === 'inactivos' ? false : null;
     const outOfStock = req.query.estado === 'sin_stock';
     const categoryId = req.query.categoria_id ? Number(req.query.categoria_id) : null;
+    const q = normalizeTerm(req.query.q);
 
     // Rollup igual que public.js (§0.1 regla 2): filtrar por una categoría
     // padre debe traer también los productos de sus hijas, no solo los
@@ -109,7 +111,14 @@ router.get('/admin/productos', async (req, res, next) => {
       categoryIds = childIds.length > 0 ? [categoryId, ...childIds] : [categoryId];
     }
 
-    const { rows } = await productsModel.findAllForAdmin({ isActive, categoryIds, outOfStock, page: 1, perPage: 50 });
+    const { rows } = await productsModel.findAllForAdmin({
+      isActive,
+      categoryIds,
+      outOfStock,
+      q: q || null,
+      page: 1,
+      perPage: 50,
+    });
     const categories = await categoriesModel.findAll();
 
     res.render('admin/layouts/admin', {
@@ -117,7 +126,7 @@ router.get('/admin/productos', async (req, res, next) => {
       title: `Productos — ${config.NOMBRE_TIENDA}`,
       products: rows,
       categories,
-      filters: { estado: req.query.estado || '', categoria_id: req.query.categoria_id || '' },
+      filters: { estado: req.query.estado || '', categoria_id: req.query.categoria_id || '', q },
     });
   } catch (err) {
     next(err);

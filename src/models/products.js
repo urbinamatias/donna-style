@@ -2,6 +2,7 @@
 const db = require('../db/pool');
 const productImagesModel = require('./product-images');
 const variantsModel = require('./variants');
+const { escapeLikeLiteral, FOLD_FROM, FOLD_TO, likePattern } = require('../services/text-search');
 
 async function create({
   name,
@@ -184,9 +185,10 @@ async function findByIdWithDetails(id) {
 // distinto, `stock <= 2` a nivel variante, no "todas las variantes en 0" a
 // nivel producto). Misma regla que `countWithoutStock`: `bool_and(stock = 0)`
 // exige que el producto tenga al menos una variante y que TODAS estén en 0.
-async function findAllForAdmin({ isActive = null, categoryIds = null, outOfStock = false, page = 1, perPage = 50 } = {}) {
+async function findAllForAdmin({ isActive = null, categoryIds = null, outOfStock = false, q = null, page = 1, perPage = 50 } = {}) {
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   const offset = (safePage - 1) * perPage;
+  const pattern = q ? likePattern(q) : null;
 
   const { rows } = await db.query(
     `SELECT p.*, COUNT(*) OVER() AS full_count
@@ -199,9 +201,10 @@ async function findAllForAdmin({ isActive = null, categoryIds = null, outOfStock
        AND ($3::boolean IS NOT TRUE OR p.id IN (
          SELECT v.product_id FROM variants v GROUP BY v.product_id HAVING bool_and(v.stock = 0)
        ))
+       AND ($6::text IS NULL OR translate(lower(p.name), $7, $8) LIKE translate(lower($6), $7, $8) ESCAPE '\')
      ORDER BY p.created_at DESC
      LIMIT $4 OFFSET $5`,
-    [isActive, categoryIds, outOfStock, perPage, offset]
+    [isActive, categoryIds, outOfStock, perPage, offset, pattern, FOLD_FROM, FOLD_TO]
   );
 
   const total = rows.length > 0 ? Number(rows[0].full_count) : 0;
@@ -330,23 +333,9 @@ async function findAllActiveSlugs() {
   return rows;
 }
 
-// Buscador de nombre (design.md D3). `LIKE_META` escapa `%`, `_` y `\` para
-// que un término con esos caracteres se trate como literal, nunca como
-// wildcard/escape del usuario (spec "Wildcard input is literal").
-const LIKE_META = /[\\%_]/g;
-function escapeLikeLiteral(value) {
-  return value.replace(LIKE_META, '\\$&');
-}
-
-// `translate()` en vez de `unaccent()`: la extensión pg no está instalada
-// (sin CREATE EXTENSION en /db/migrations) y crearla exige superusuario +
-// una migración fuera de alcance de esta fase ("sin migraciones" del
-// proposal). `translate()` da tolerancia a acentos de español sin extensión;
-// no es un fold Unicode general (sin ligaduras/otros alfabetos), aceptable
-// para un catálogo en español. `%`, `_`, `\` no están en el mapa de fold,
-// así que los wildcards y el caracter de escape sobreviven intactos.
-const FOLD_FROM = 'áàäâãéèëêíìïîóòöôõúùüûñç';
-const FOLD_TO = 'aaaaaeeeeiiiiooooouuuunc';
+// Buscador de nombre (design.md D3). Escapeo + tolerancia a acentos vía
+// `services/text-search.js` (compartido con el filtro de admin acá abajo y
+// con `models/variants.js`, spec "Wildcard input is literal").
 
 // LIMIT fijo, sin paginación (design.md D3): un `LIKE` con wildcard inicial
 // no puede usar un índice btree; a este tamaño de catálogo no hace falta un

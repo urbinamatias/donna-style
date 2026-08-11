@@ -1,6 +1,7 @@
 // Acceso a datos de `variants`. SQL crudo parametrizado, sin ORM.
 const db = require('../db/pool');
 const { LOW_STOCK_THRESHOLD } = require('../services/orders-status');
+const { FOLD_FROM, FOLD_TO, likePattern } = require('../services/text-search');
 
 // El SKU es un dato interno (identificador de inventario/proveedor), nunca
 // algo que la dueña carga o ve (fase 6c, QA: se mostraba como campo editable
@@ -136,20 +137,24 @@ function stripFullCount(row) {
 // Listado admin de stock (Fase 6c, design.md "findAllForAdmin"): incluye
 // variantes de productos inactivos (spec "Rows of inactive products MUST
 // still be listed"). `lowStock` usa el umbral centralizado de
-// orders-status.js, nunca hardcodeado acá.
-async function findAllForAdmin({ productId = null, lowStock = false, page = 1, perPage = 100 } = {}) {
+// orders-status.js, nunca hardcodeado acá. `q` filtra por nombre de
+// producto (texto libre, no id — QA: un combobox de ids no ordenado no
+// servía para encontrar nada), mismo escapeo + tolerancia a acentos que el
+// buscador público (`services/text-search.js`).
+async function findAllForAdmin({ q = null, lowStock = false, page = 1, perPage = 100 } = {}) {
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   const offset = (safePage - 1) * perPage;
+  const pattern = q ? likePattern(q) : null;
 
   const { rows } = await db.query(
     `SELECT v.*, p.name AS product_name, COUNT(*) OVER() AS full_count
      FROM variants v
      JOIN products p ON p.id = v.product_id
-     WHERE ($1::bigint IS NULL OR v.product_id = $1)
+     WHERE ($1::text IS NULL OR translate(lower(p.name), $6, $7) LIKE translate(lower($1), $6, $7) ESCAPE '\')
        AND ($2::boolean IS NOT TRUE OR v.stock <= $3::int)
      ORDER BY p.name, v.size_order, v.color
      LIMIT $4 OFFSET $5`,
-    [productId, lowStock, LOW_STOCK_THRESHOLD, perPage, offset]
+    [pattern, lowStock, LOW_STOCK_THRESHOLD, perPage, offset, FOLD_FROM, FOLD_TO]
   );
 
   const total = rows.length > 0 ? Number(rows[0].full_count) : 0;

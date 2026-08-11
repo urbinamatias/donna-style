@@ -92,12 +92,15 @@ test('GET /admin/stock sin sesión redirige a login', async () => {
   assert.match(res.headers.get('location'), /\/admin\/login/);
 });
 
-test('GET /admin/stock: filtro producto+bajo combinado trae exactamente las filas esperadas', async () => {
+test('GET /admin/stock: filtro por nombre de producto + bajo combinado trae exactamente las filas esperadas', async () => {
   const { cookie } = await loginSession();
   const { product: productA } = await makeFixtureProduct([0, 2, 7]);
   await makeFixtureProduct([1]);
 
-  const res = await fetch(`${baseUrl}/admin/stock?producto=${productA.id}&bajo=1`, { headers: { cookie } });
+  const res = await fetch(
+    `${baseUrl}/admin/stock?q=${encodeURIComponent(productA.name)}&bajo=1`,
+    { headers: { cookie } }
+  );
   const body = await res.text();
   assert.equal(res.status, 200);
   assert.match(body, /<td class="p-3">T0<\/td>/);
@@ -109,12 +112,48 @@ test('GET /admin/stock: filtro producto+bajo combinado trae exactamente las fila
   assert.doesNotMatch(body, /<td class="p-3">T2<\/td>/, 'la fila con stock 7 no debe listarse con bajo=1');
 });
 
-test('GET /admin/stock: producto inválido/inexistente responde 200 con resultado vacío y aviso, nunca 500', async () => {
+test('GET /admin/stock: nombre de producto parcial/case-insensitive/con acentos matchea (mismo criterio que el buscador público)', async () => {
   const { cookie } = await loginSession();
-  const res = await fetch(`${baseUrl}/admin/stock?producto=abc`, { headers: { cookie } });
+  const { product } = await makeFixtureProduct([3]);
+  // El fixture arma el nombre como "Fixture Stock Route <timestamp>-<rand>":
+  // buscar por un fragmento en minúsculas del medio del nombre real.
+  const fragment = product.name.slice(0, 15).toLowerCase();
+
+  const res = await fetch(`${baseUrl}/admin/stock?q=${encodeURIComponent(fragment)}`, { headers: { cookie } });
+  const body = await res.text();
+  assert.equal(res.status, 200);
+  assert.match(body, new RegExp(`<td class="p-3">${product.name}</td>`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
+test('GET /admin/stock: término sin resultados responde 200 con la lista vacía, nunca 500', async () => {
+  const { cookie } = await loginSession();
+  const res = await fetch(`${baseUrl}/admin/stock?q=${encodeURIComponent('zzz-no-existe-zzz')}`, { headers: { cookie } });
   assert.equal(res.status, 200);
   const body = await res.text();
-  assert.ok(body.length > 0);
+  assert.match(body, /No hay variantes para mostrar con este filtro\./);
+});
+
+test('GET /admin/stock: término con % _ \\ se trata como texto literal, nunca como wildcard ni rompe la query', async () => {
+  const { cookie } = await loginSession();
+  const res = await fetch(`${baseUrl}/admin/stock?q=${encodeURIComponent('%_\\')}`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+});
+
+test('GET /admin/stock: término de más de 100 caracteres no rompe (se recorta, spec normalizeTerm)', async () => {
+  const { cookie } = await loginSession();
+  const longTerm = 'a'.repeat(500);
+  const res = await fetch(`${baseUrl}/admin/stock?q=${encodeURIComponent(longTerm)}`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+});
+
+test('GET /admin/stock: q vacío o solo espacios no filtra, lista todo igual que sin query', async () => {
+  const { cookie } = await loginSession();
+  await makeFixtureProduct([4]);
+
+  const withoutQuery = await fetch(`${baseUrl}/admin/stock`, { headers: { cookie } });
+  const blankQuery = await fetch(`${baseUrl}/admin/stock?q=${encodeURIComponent('   ')}`, { headers: { cookie } });
+  assert.equal(withoutQuery.status, 200);
+  assert.equal(blankQuery.status, 200);
 });
 
 test('POST /admin/stock sin CSRF es 403 y no cambia nada', async () => {
