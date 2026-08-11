@@ -76,7 +76,7 @@
     </div>
 
     <% if (transferPrice !== null) { %>
-      <p class="text-brandInk font-semibold">
+      <p class="text-success font-semibold">
         <%= formatPrice(transferPrice) %>
         <span class="text-xs text-textMuted font-normal">Efectivo/Transferencia</span>
       </p>
@@ -84,7 +84,7 @@
 
     <% if (installmentValue !== null) { %>
       <p class="text-sm text-textMuted">
-        6 cuotas sin interés de <%= formatPrice(installmentValue) %>
+        6 cuotas sin interés de <span class="font-semibold text-text"><%= formatPrice(installmentValue) %></span>
       </p>
     <% } %>
 

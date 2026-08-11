@@ -8,8 +8,8 @@
   innerHTML — el form es GET plano a /buscar?q=, funciona sin JS.
   menu-animate.js ya anima cualquier `details[data-menu]`: como este panel
   no tiene [data-menu-backdrop]/[data-menu-drawer], toma la rama "dropdown"
-  (fade + 6px, sin backdrop/Escape/click-outside) — aceptable: enviar el
-  form navega afuera, y volver a tocar el ícono cierra el panel.
+  (fade + 6px), que cierra con click/touch afuera o Escape igual que el
+  drawer, sin backdrop visual.
 ------------------------------------------------------------------ %>
 <% if (!locals.hideFloatingUI) { %>
 <details data-menu class="relative">

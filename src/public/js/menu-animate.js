@@ -140,6 +140,25 @@
           });
         });
       });
+    } else {
+      // Paneles sin backdrop (ej. buscador): cerrar al click/touch afuera o
+      // con Escape, mismo criterio que el drawer.
+      document.addEventListener('click', function (event) {
+        if (!details.open || busy || details.contains(event.target)) return;
+        busy = true;
+        close().then(function () {
+          busy = false;
+        });
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape' || !details.open || busy) return;
+        busy = true;
+        close().then(function () {
+          busy = false;
+          summary.focus();
+        });
+      });
     }
   }
 

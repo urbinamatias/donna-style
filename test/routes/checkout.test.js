@@ -249,6 +249,7 @@ test('GET /pedido/:token: accesible sin sesión, con noindex, y con los datos de
 // no `config.WHATSAPP_ADMIN` (.env) directo — sin reiniciar el proceso.
 test('POST /checkout: el link wa.me sigue el valor del PANEL (site_settings), no el de .env, sin reiniciar el server', async () => {
   const panelNumber = '5493519998877';
+  const previous = (await siteSettingsModel.getAll()).whatsapp_admin;
   await siteSettingsModel.set('whatsapp_admin', panelNumber);
 
   try {
@@ -266,6 +267,13 @@ test('POST /checkout: el link wa.me sigue el valor del PANEL (site_settings), no
     const body = await res.text();
     assert.match(body, new RegExp(`wa\\.me/${panelNumber}`));
   } finally {
-    await pool.query(`DELETE FROM site_settings WHERE key = 'whatsapp_admin'`);
+    // Restaurar el valor previo (seed) en vez de borrar la fila: un DELETE
+    // ciego acá se llevaba puesto el dato sembrado para otros tests/archivos
+    // que leen site_settings sin poblarlo ellos mismos (ej. admin-settings.test.js).
+    if (previous) {
+      await siteSettingsModel.set('whatsapp_admin', previous);
+    } else {
+      await pool.query(`DELETE FROM site_settings WHERE key = 'whatsapp_admin'`);
+    }
   }
 });
