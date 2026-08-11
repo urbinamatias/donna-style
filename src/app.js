@@ -158,6 +158,9 @@ app.use((err, req, res, next) => {
     announcementItems: res.locals.announcementItems || [],
     storeConfig: res.locals.storeConfig || storeConfig.fromEnv(),
     csrfToken: res.locals.csrfToken || '',
+    // Fase 7: una respuesta 500 nunca se indexa. Slot opcional ya existente
+    // del layout (main.ejs:21-23), mismo mecanismo que checkout/pedido.
+    noindex: true,
   });
 });
 

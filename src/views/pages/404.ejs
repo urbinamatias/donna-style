@@ -1,7 +1,13 @@
 <%# Estado 404 genérico (§5.4 threat matrix: slug inexistente → 404 legible,
-    nunca un stack trace). %>
-<section class="mx-auto max-w-[1400px] px-4 py-24 text-center">
-  <h1 class="mb-4 text-2xl font-semibold">No encontramos esa página</h1>
-  <p class="mb-6 text-textMuted">Puede que el link esté mal escrito o que la página ya no exista.</p>
-  <a href="/" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Volver al inicio</a>
+    nunca un stack trace). Fase 7 (design.md): "estado centrado" con número
+    decorativo aria-hidden (fuera del árbol de accesibilidad) + h1 = mensaje
+    + único CTA. %>
+<section class="mx-auto max-w-[720px] px-4 py-16 text-center sm:py-24">
+  <p aria-hidden="true" class="font-brand font-bold leading-none text-borderStrong text-7xl sm:text-9xl">404</p>
+  <h1 class="mt-6 text-2xl font-semibold">No encontramos esa página</h1>
+  <p class="mx-auto mt-3 max-w-[46ch] text-textMuted">
+    Puede que el link esté mal escrito o que la página ya no exista.
+  </p>
+  <a href="/" class="mt-8 inline-block rounded px-5 py-3 text-sm font-semibold text-text"
+     style="background: var(--brand-gradient);">Volver al inicio</a>
 </section>

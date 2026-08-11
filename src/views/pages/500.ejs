@@ -1,8 +1,13 @@
 <%# Estado 500 genérico: nunca se le muestra el stack trace a la clienta
     (§8.1 / threat matrix). El detalle real queda en console.error del
-    servidor (ver app.js). %>
-<section class="mx-auto max-w-[1400px] px-4 py-24 text-center">
-  <h1 class="mb-4 text-2xl font-semibold">Algo salió mal</h1>
-  <p class="mb-6 text-textMuted">Estamos teniendo un problema técnico. Probá de nuevo en un momento.</p>
-  <a href="/" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Volver al inicio</a>
+    servidor (ver app.js). Fase 7 (design.md): mismo "estado centrado" que
+    la 404, número decorativo aria-hidden + h1 = mensaje + único CTA. %>
+<section class="mx-auto max-w-[720px] px-4 py-16 text-center sm:py-24">
+  <p aria-hidden="true" class="font-brand font-bold leading-none text-borderStrong text-7xl sm:text-9xl">500</p>
+  <h1 class="mt-6 text-2xl font-semibold">Algo salió mal</h1>
+  <p class="mx-auto mt-3 max-w-[46ch] text-textMuted">
+    Estamos teniendo un problema técnico. Probá de nuevo en unos minutos.
+  </p>
+  <a href="/" class="mt-8 inline-block rounded px-5 py-3 text-sm font-semibold text-text"
+     style="background: var(--brand-gradient);">Volver al inicio</a>
 </section>

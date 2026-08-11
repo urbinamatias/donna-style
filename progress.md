@@ -728,11 +728,130 @@ Ciclo SDD completo: proposal → spec → design → tasks → apply, Engram
 lo sobrescribe en vez de agregarlo — hay que usar un topic_key propio
 para notas nuevas, o releer y reescribir el documento completo).
 
+### Fase 7 (continuación) — Buscador, CTA de WhatsApp, color de marca plano ✅ cerrada
+
+Cierra el TODO "buscador → sin fase asignada" que venía arrastrándose desde
+Fase 3 (§5.11). Ciclo SDD completo (proposal → spec → design → tasks →
+apply, Engram #413-#418), 4 commits atómicos directos en `main` (a pedido
+explícito del usuario, en vez del split en 4 PRs que sugería `tasks.md`):
+
+1. `bdcc8be` — Color de marca pasa de gradiente a plano `#F5AB56`
+   (`text-brandInk` en vez de dos tonos), con contraste AA verificado en
+   botones sólidos. Toca `input.css`/`tailwind.config.js` (se saca
+   `brandTo`) + 6 vistas admin.
+2. `549f1e2` — Middleware `floating-ui.js` nuevo: flag `hideFloatingUI` en
+   `res.locals` para ocultar buscador y FAB de WhatsApp en rutas donde no
+   corresponden (admin, checkout, etc.), TDD estricto.
+3. `9a4469e` — CTA flotante de WhatsApp (`whatsapp-fab.ejs`), número desde
+   `store-config.js` (`waDigits`, mismo resolver de 3 niveles de Fase 6d).
+4. `a511125` — Buscador `GET /buscar`: `escapeLikeLiteral`/
+   `searchActiveByName` en `models/products.js`, `normalizeTerm`/
+   `searchProductsByName` en `services/search.js` (tolerante a acentos,
+   trata `%`/`_`/`\` como texto literal, nunca wildcard), rate limit
+   dedicado (`search-rate-limit.js`, reusa `fixedWindowRateLimit` extendido
+   de `rate-limit.js`), ícono en el header (`search-toggle.ejs`). Ruta
+   agregada a `Disallow` de `robots.txt`.
+
+**QA post-`apply`, bugs reales corregidos** (`7f03596`):
+- El panel de búsqueda del header no cerraba con click/touch afuera ni
+  Escape — se enganchó al mismo mecanismo genérico ya usado por el drawer
+  de navegación (`menu-animate.js`).
+- El FAB de WhatsApp usaba un ícono SVG genérico — reemplazado por el logo
+  real (`logo/whatsapp.png`), con `drop-shadow` sobre la imagen en vez de
+  sombra de caja, para que siga el contorno real del ícono.
+- Precio de cuotas no estaba en negrita (inconsistente con precio de lista
+  y de efectivo/transferencia) en card de catálogo y ficha de producto —
+  unificado.
+- Bug de test (no de producto): el cleanup de `checkout.test.js` borraba
+  la fila `whatsapp_admin` de `site_settings` en vez de restaurar el valor
+  previo, rompiendo el seed para `admin-settings.test.js` si corría después
+  en la misma suite.
+
+**Deuda de infraestructura de tests, no bloqueante**: los 13 archivos de
+`test/routes/*.test.js` + `test/services/images.test.js` siguen sin poder
+correr desde WSL (requieren `app.js` → `adminRouter` → `sharp`, mismo
+límite documentado en `CLAUDE.md` §1/§5). Confirmado sin regresiones: 225
+tests corren limpio en WSL fuera de esos 13 archivos; la suite completa
+(342/342 incluyendo esos archivos) requiere confirmación desde Windows.
+
+### Fase 7 (continuación) — Panel admin: filtro en vivo por nombre ✅ cerrada
+
+Follow-on directo de la sesión anterior, sin ciclo SDD propio (cambio
+chico, mismo criterio ya usado para ajustes puntuales de QA). Commit
+`49c55eb`:
+
+- Textbox de búsqueda por nombre en `/admin/productos` (junto a los
+  combobox de Estado/Categoría) y en `/admin/stock` — en Stock reemplaza
+  el combobox de productos por id (sin orden, confuso) por texto libre.
+- Se saca el botón "Filtrar" de ambas pantallas: el form se auto-envía al
+  cambiar cualquier combobox/checkbox, con debounce de 350ms mientras se
+  tipea (`live-filter.js`, nuevo). Fallback `<noscript>` si el JS no carga.
+- El escapeo LIKE + tolerancia a acentos del buscador público se extrajo a
+  `src/services/text-search.js` (antes vivía solo en `models/products.js`)
+  para reusarlo también en `models/variants.js` sin generar un ciclo de
+  imports entre ambos modelos.
+- `findAllForAdmin` de productos y variantes suman el filtro `q`,
+  parametrizado, combinable con los filtros existentes.
+- `live-filter.js` restaura el foco del textbox tras el reload (incluso
+  con el campo vacío) vía un flag en `sessionStorage`, sin devolverlo si
+  quien disparó el envío fue un combobox.
+- Mismo fix de test de `checkout.test.js` reforzado: `admin-settings.test.js`
+  ahora siembra su propio dato de `whatsapp_admin` en vez de depender de un
+  seed externo previo.
+
+Confirmado desde Windows en sesión posterior: suite completa (`npm run
+build:css` + `npm test` con Postgres levantado) en verde, sin regresiones.
+
+### Fase 7 (continuación) — Páginas de error 404/500 pulidas ✅ cerrada
+
+Primero de 5 ciclos SDD independientes que cubren el resto de "Pulido"
+(páginas de error → performance → accesibilidad → lightbox → README, orden
+decidido en la exploración conjunta `sdd/fase7-pulido-final/explore`).
+Ciclo SDD completo: proposal → spec → design → tasks → apply → verify →
+archive, Engram #421-#427.
+
+Rediseño puramente visual, sin dependencias nuevas: número de estado
+grande en Merriweather como elemento decorativo (`aria-hidden="true"`,
+NUNCA el `<h1>` — el encabezado accesible sigue siendo el mensaje humano,
+"No encontramos esa página" / "Algo salió mal"), un solo CTA ("Volver al
+inicio"), FAB de WhatsApp visible en ambas. `noindex: true` agregado al
+handler de la 500 en `src/app.js` (3 líneas, aditivo — el slot ya existía
+en `main.ejs`, mismo mecanismo que usan checkout/pedido; la 404 ya lo
+tenía vía `buildPrivateSeo`).
+
+**Decisiones de producto confirmadas por la dueña** (todas la opción
+recomendada en la ronda de propuesta): sin buscador/categorías en la 404
+(solo el CTA único, no depende de `menuTree`); ilustración tipográfica sin
+asset gráfico nuevo; FAB visible en errores; `noindex` autorizado en la
+500 pese a ser un cambio marginalmente fuera del alcance visual estricto.
+
+**Hallazgo colateral, documentado, no corregido en este ciclo** (fuera de
+alcance): la clase `border-border-strong`, ya usada en `cart.ejs` y
+`checkout-confirm.ejs` entre otras vistas, no compila CSS real —
+`tailwind.config.js` declara la key como `borderStrong` y la utility
+generada es `.border-borderStrong`, no `.border-border-strong`. Este
+ciclo usó `text-borderStrong` (la clase correcta) para el número
+decorativo, pero el bug preexistente en las otras vistas sigue sin
+tocar.
+
+TDD estricto en `test/routes/error-pages.test.js`: suite de render
+aislado (`ejs.renderFile`, corre limpio en WSL, 2/2 verde) + suite HTTP de
+la 404 (bloqueada en WSL por el límite conocido de `sharp`/`adminRouter`,
+`t.skip()` explícito en vez de tumbar el archivo). 345/345 tests
+confirmados en verde desde Windows (incluida la suite HTTP), sin
+regresiones sobre la baseline.
+
+**QA manual de la dueña**: 404 confirmada correcta en vivo. La 500 no se
+pudo forzar en el intento (parar Postgres localmente) — warning no
+bloqueante en el verify, mismo criterio de precedentes del proyecto
+(ej. compartir en redes diferido en el cierre de Fase 7 SEO). Mitigado por
+el test de render aislado en verde + un harness temporal de humo corrido
+durante `apply` que sí ejercitó un 500 real con Postgres caído.
+
 ## Fases sin empezar (resto de "Pulido")
 
 7 (continuación). Accesibilidad fina, performance, lightbox/zoom de la
-   ficha, páginas de error visualmente pulidas (`404.ejs`/`500.ejs`
-   existen pero son básicas), README de despliegue.
+   ficha, README de despliegue.
 
 ## Entorno / recordatorios operativos
 
