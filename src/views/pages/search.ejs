@@ -1,0 +1,32 @@
+<%# Resultados de búsqueda por nombre (design.md D4). Misma forma de datos que
+    category.ejs: la ruta ya corrió attachCardData, así que cada producto
+    trae { images, variants, availability, decisionTable } — el include de
+    product-card.ejs es byte-idéntico al de category.ejs:61. `term` siempre
+    se renderiza escapado, cubre el escenario de XSS del spec. %>
+<section class="mx-auto max-w-[1400px] px-4 py-6">
+  <h1 class="mb-6 text-2xl font-semibold">
+    <% if (term) { %>Resultados para "<%= term %>"<% } else { %>Buscar productos<% } %>
+  </h1>
+
+  <form method="get" action="/buscar" role="search" class="mb-6 flex flex-wrap items-end gap-3 border-b border-border pb-6">
+    <label for="q" class="sr-only">Buscar productos</label>
+    <input type="search" id="q" name="q" value="<%= term %>" maxlength="100" placeholder="Nombre del producto"
+           class="w-64 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+    <button type="submit" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Buscar</button>
+  </form>
+
+  <% if (products.length === 0) { %>
+    <div class="py-16 text-center">
+      <p class="mb-4 text-textMuted">
+        <% if (term) { %>No encontramos nada para "<%= term %>".<% } else { %>Escribí el nombre de una prenda para buscarla.<% } %>
+      </p>
+      <a href="/" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Volver al catálogo</a>
+    </div>
+  <% } else { %>
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <% products.forEach(function (product) { %>
+        <%- include('../partials/product-card', { product }) %>
+      <% }) %>
+    </div>
+  <% } %>
+</section>

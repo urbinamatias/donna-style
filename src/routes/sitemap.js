@@ -87,6 +87,7 @@ router.get('/robots.txt', (req, res) => {
     'User-agent: *',
     'Allow: /',
     'Disallow: /admin',
+    'Disallow: /buscar',
     'Disallow: /carrito',
     'Disallow: /checkout',
     'Disallow: /pedido/',

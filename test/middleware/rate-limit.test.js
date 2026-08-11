@@ -4,7 +4,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { loginRateLimit } = require('../../src/middleware/rate-limit');
+const { loginRateLimit, fixedWindowRateLimit } = require('../../src/middleware/rate-limit');
 
 function fakeReqRes(ip) {
   const req = { ip };
@@ -123,4 +123,87 @@ test('loginRateLimit: nunca crece de forma ilimitada (hard cap ~10k evictando el
     middleware(req, res, () => {});
   }
   assert.ok(middleware._attempts.size <= 10000, `tamaño del map (${middleware._attempts.size}) debe respetar el cap`);
+});
+
+// --- fixedWindowRateLimit (design.md D2, buscador) --------------------
+// A diferencia de loginRateLimit, cuenta SIEMPRE (no hay recordFailure): un
+// endpoint de lectura como /buscar no tiene noción de "fallo".
+function fakeReqResSearch(ip) {
+  const req = { ip };
+  const res = {
+    statusCode: 200,
+    body: null,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    type() {
+      return this;
+    },
+    send(payload) {
+      this.body = payload;
+      return this;
+    },
+  };
+  return { req, res };
+}
+
+test('fixedWindowRateLimit: permite hasta max requests desde la misma IP', () => {
+  let clock = 0;
+  const middleware = fixedWindowRateLimit({ max: 30, windowMs: 60000, now: () => clock });
+  const { req, res } = fakeReqResSearch('1.2.3.4');
+
+  for (let i = 0; i < 30; i += 1) {
+    let called = false;
+    middleware(req, res, () => {
+      called = true;
+    });
+    assert.equal(called, true, `request ${i + 1} debería pasar`);
+  }
+});
+
+test('fixedWindowRateLimit: bloquea el request max+1 con 429 y no llama next', () => {
+  let clock = 0;
+  const middleware = fixedWindowRateLimit({ max: 30, windowMs: 60000, now: () => clock });
+  const { req, res } = fakeReqResSearch('2.3.4.5');
+
+  for (let i = 0; i < 30; i += 1) middleware(req, res, () => {});
+
+  let called = false;
+  middleware(req, res, () => {
+    called = true;
+  });
+  assert.equal(called, false);
+  assert.equal(res.statusCode, 429);
+});
+
+test('fixedWindowRateLimit: la ventana expira y resetea el contador (reloj inyectado)', () => {
+  let clock = 0;
+  const middleware = fixedWindowRateLimit({ max: 2, windowMs: 1000, now: () => clock });
+  const { req, res } = fakeReqResSearch('3.4.5.6');
+
+  middleware(req, res, () => {});
+  middleware(req, res, () => {});
+  let blocked = false;
+  middleware(req, res, () => {
+    blocked = true;
+  });
+  assert.equal(blocked, false, 'tercer request dentro de la ventana debe bloquear');
+
+  clock = 2000;
+  let called = false;
+  middleware(req, res, () => {
+    called = true;
+  });
+  assert.equal(called, true, 'tras vencer la ventana el contador debe resetear');
+});
+
+test('fixedWindowRateLimit: respeta el cap MAX_KEYS evictando el más viejo', () => {
+  let clock = 0;
+  const middleware = fixedWindowRateLimit({ max: 30, windowMs: 900000, now: () => clock });
+  for (let i = 0; i < 10050; i += 1) {
+    const { req, res } = fakeReqResSearch(`20.0.${Math.floor(i / 255)}.${i % 255}`);
+    middleware(req, res, () => {});
+  }
+  assert.ok(middleware._hits.size <= 10000, `tamaño del map (${middleware._hits.size}) debe respetar el cap`);
 });

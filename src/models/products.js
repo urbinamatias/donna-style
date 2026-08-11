@@ -330,6 +330,40 @@ async function findAllActiveSlugs() {
   return rows;
 }
 
+// Buscador de nombre (design.md D3). `LIKE_META` escapa `%`, `_` y `\` para
+// que un término con esos caracteres se trate como literal, nunca como
+// wildcard/escape del usuario (spec "Wildcard input is literal").
+const LIKE_META = /[\\%_]/g;
+function escapeLikeLiteral(value) {
+  return value.replace(LIKE_META, '\\$&');
+}
+
+// `translate()` en vez de `unaccent()`: la extensión pg no está instalada
+// (sin CREATE EXTENSION en /db/migrations) y crearla exige superusuario +
+// una migración fuera de alcance de esta fase ("sin migraciones" del
+// proposal). `translate()` da tolerancia a acentos de español sin extensión;
+// no es un fold Unicode general (sin ligaduras/otros alfabetos), aceptable
+// para un catálogo en español. `%`, `_`, `\` no están en el mapa de fold,
+// así que los wildcards y el caracter de escape sobreviven intactos.
+const FOLD_FROM = 'áàäâãéèëêíìïîóòöôõúùüûñç';
+const FOLD_TO = 'aaaaaeeeeiiiiooooouuuunc';
+
+// LIMIT fijo, sin paginación (design.md D3): un `LIKE` con wildcard inicial
+// no puede usar un índice btree; a este tamaño de catálogo no hace falta un
+// índice trigram (pg_trgm), documentado como escape hatch si crece.
+async function searchActiveByName(term, limit = 48) {
+  const pattern = `%${escapeLikeLiteral(term)}%`;
+  const { rows } = await db.query(
+    `SELECT * FROM products
+      WHERE is_active = true
+        AND translate(lower(name), $2, $3) LIKE translate(lower($1), $2, $3) ESCAPE '\\'
+      ORDER BY name ASC
+      LIMIT $4`,
+    [pattern, FOLD_FROM, FOLD_TO, limit]
+  );
+  return rows;
+}
+
 async function countWithoutStock() {
   const { rows } = await db.query(
     `SELECT count(*)::int AS n FROM (
@@ -359,4 +393,6 @@ module.exports = {
   remove,
   hasOrders,
   countWithoutStock,
+  searchActiveByName,
+  escapeLikeLiteral,
 };

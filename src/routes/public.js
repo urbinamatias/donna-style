@@ -9,6 +9,8 @@ const variantsModel = require('../models/variants');
 const carouselSlidesModel = require('../models/carousel-slides');
 const { computeAvailability, buildDecisionTable } = require('../services/availability');
 const { buildHomeSeo, buildCategorySeo, buildProductSeo, buildPrivateSeo, buildProductJsonLd } = require('../services/seo');
+const { searchProductsByName } = require('../services/search');
+const searchRateLimit = require('../middleware/search-rate-limit');
 const config = require('../config/env');
 
 const router = express.Router();
@@ -143,6 +145,31 @@ router.get('/productos/:productSlug', async (req, res, next) => {
       product,
       related,
       bodyScripts,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /buscar (design.md D1): registrada ACÁ a propósito, ANTES del comodín
+// `/:parentSlug` (más abajo), no en un router separado — de otro modo el
+// comodín de categoría capturaría `/buscar` como si fuera un slug de
+// categoría de primer nivel (mismo bug class que /carrito, /checkout,
+// /pedido, /admin, todos resueltos con la misma regla de orden). "buscar"
+// queda como slug de primer nivel reservado, mismo estatus de facto que esos
+// otros — no hay validación de slugs reservados en el admin, tampoco acá.
+// test/routes/search.test.js cubre explícitamente que este handler responda
+// antes que el catch-all.
+router.get('/buscar', searchRateLimit, async (req, res, next) => {
+  try {
+    const { term, rows: rawProducts } = await searchProductsByName(req.query.q);
+    const products = await attachCardData(rawProducts);
+
+    res.render('layouts/main', {
+      view: '../pages/search',
+      ...buildPrivateSeo({ title: term ? `Resultados para "${term}" — ${config.NOMBRE_TIENDA}` : `Buscar — ${config.NOMBRE_TIENDA}` }),
+      term,
+      products,
     });
   } catch (err) {
     next(err);
