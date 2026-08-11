@@ -15,6 +15,7 @@ const { computeTransferPrice, computeInstallmentValue } = require('./services/pr
 const { statusBadge, transitionButtonClass } = require('./services/orders-status');
 const { imageSrc, imageAttrs, slideImageAttrs } = require('./services/image-urls');
 const { ensureToken, csrfProtection } = require('./middleware/csrf');
+const { floatingUi } = require('./middleware/floating-ui');
 const storeConfig = require('./services/store-config');
 const config = require('./config/env');
 const { pool } = require('./db/pool');
@@ -115,6 +116,13 @@ app.use(async (req, res, next) => {
     next(err);
   }
 });
+
+// `hideFloatingUI` (design.md D7): deny-list por path para el magnifier del
+// header y el CTA flotante de WhatsApp — va después del chrome de
+// menuTree/storeConfig de arriba (ambos consumidores viven en layouts/main
+// vía `res.locals`) y antes de cualquier router, para que TODA página
+// (incluido el 500 handler) vea el flag ya resuelto.
+app.use(floatingUi);
 
 app.use(healthRouter);
 // Antes de publicRouter (design.md D2/D7, Fase 5 tasks.md 3.8, Fase 6a
