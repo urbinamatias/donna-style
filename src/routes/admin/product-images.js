@@ -102,6 +102,19 @@ router.post(
 
       const existing = await productImagesModel.findByProductId(productId);
 
+      // Bug real de QA (no del ciclo de lightbox): MAX_FILES en multer solo
+      // limita cuántos archivos entran en ESTA request — nunca se comparaba
+      // contra las fotos que el producto YA tiene. Repitiendo este POST
+      // varias veces se podía superar el límite de negocio de 6 sin ningún
+      // bloqueo (reportado: 12 fotos subidas, 6+6 en dos rondas).
+      if (existing.length + files.length > MAX_FILES) {
+        return renderEditWithError(
+          res,
+          productId,
+          `Este producto ya llegó al máximo de ${MAX_FILES} fotos. Borrá alguna antes de subir más.`
+        );
+      }
+
       await uploadImagesForProduct(files, {
         productId,
         defaultAltText: product.name,

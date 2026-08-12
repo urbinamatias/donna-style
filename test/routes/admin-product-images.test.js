@@ -286,3 +286,57 @@ test('POST /admin/productos (multipart) sin token CSRF es 403 y no crea nada', a
   const { rows } = await pool.query('SELECT count(*)::int AS n FROM products WHERE slug = $1', [slug]);
   assert.equal(rows[0].n, 0);
 });
+
+// Bug real de QA (reportado durante el ciclo de lightbox, no relacionado):
+// MAX_FILES de multer solo limitaba archivos POR REQUEST — repitiendo el
+// POST de agregar fotos a un producto ya existente se podía superar el
+// máximo de negocio de 6 fotos (reportado: 12, dos rondas de 6). Fix:
+// comparar existentes + nuevas contra MAX_FILES antes de procesar.
+test('POST .../imagenes: agregar fotos que superan MAX_FILES totales (existentes + nuevas) se rechaza, no inserta ninguna', async () => {
+  const { cookie, csrfToken } = await loginSession();
+
+  const product = await productsModel.create({
+    name: 'Producto Test Límite Fotos',
+    slug: `producto-test-limite-fotos-${Date.now()}`,
+    basePrice: 500,
+    isActive: false,
+  });
+  await productsModel.setCategories(product.id, [testCategoryId]);
+  await variantsModel.replaceForProduct(product.id, [{ size: 'M', color: 'Negro', stock: 1 }]);
+
+  // Llega al máximo (6) en la primera ronda.
+  const firstBatch = new FormData();
+  firstBatch.append('_csrf', csrfToken);
+  for (let i = 0; i < 6; i++) {
+    const buffer = await validImageBuffer();
+    firstBatch.append('images', new Blob([buffer], { type: 'image/jpeg' }), `foto-${i}.jpg`);
+  }
+  const firstRes = await fetch(`${baseUrl}/admin/productos/${product.id}/imagenes`, {
+    method: 'POST',
+    headers: { cookie },
+    body: firstBatch,
+    redirect: 'manual',
+  });
+  assert.ok([302, 303].includes(firstRes.status));
+
+  const afterFirst = await productsModel.findByIdWithDetails(product.id);
+  assert.equal(afterFirst.images.length, 6, 'primera ronda llega exactamente al máximo');
+
+  // Segunda ronda: UNA sola foto más, ya en el máximo — debe rechazarse.
+  const secondBatch = new FormData();
+  secondBatch.append('_csrf', csrfToken);
+  const extraBuffer = await validImageBuffer();
+  secondBatch.append('images', new Blob([extraBuffer], { type: 'image/jpeg' }), 'foto-extra.jpg');
+  const secondRes = await fetch(`${baseUrl}/admin/productos/${product.id}/imagenes`, {
+    method: 'POST',
+    headers: { cookie },
+    body: secondBatch,
+    redirect: 'manual',
+  });
+  assert.equal(secondRes.status, 400, 'rechaza en vez de insertar de más');
+
+  const afterSecond = await productsModel.findByIdWithDetails(product.id);
+  assert.equal(afterSecond.images.length, 6, 'sigue en 6, la foto extra NO se insertó');
+
+  await pool.query('DELETE FROM products WHERE id = $1', [product.id]);
+});
