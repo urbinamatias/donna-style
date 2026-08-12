@@ -146,7 +146,10 @@ router.get('/productos/:productSlug', async (req, res, next) => {
     }
 
     const bodyScripts = ['/js/copy-link.js'];
-    if (product.images.length > 1) bodyScripts.push('/js/gallery.js');
+    // Fase 7 lightbox (design.md U1, spec R9): antes `> 1` dejaba el lightbox
+    // sin script en productos de una sola foto — con 1 foto el trigger/lupa
+    // igual necesita abrir el overlay, no solo el swap de miniaturas.
+    if (product.images.length >= 1) bodyScripts.push('/js/gallery.js');
 
     res.render('layouts/main', {
       view: '../pages/product',

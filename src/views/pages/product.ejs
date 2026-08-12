@@ -50,18 +50,45 @@
       ? imageAttrs(product.id, primaryImage.base_key, { widths: [400, 800, 1400], sizes: '(min-width: 768px) 50vw, 100vw' })
       : null;
   %>
-  <div>
-    <div class="aspect-[3/4] overflow-hidden rounded-md bg-bg">
+  <%# QA real, preexistente (no del lightbox): sin tope de alto, en la
+    columna de escritorio (~684px de ancho) aspect-[3/4] daba ~912px de
+    alto, más que muchas pantallas — obligaba a scrollear para ver la foto
+    completa. El límite va ACÁ, en el contenedor que envuelve foto +
+    miniaturas (no solo en la foto): max-w-[60vh] es el ancho que le
+    corresponde a una caja 3:4 de 80vh de alto (60 = 80 × 3/4) — con
+    aspect-ratio en la foto, el alto sale solo, correcto, sin la
+    complejidad de "max-height encoge el ancho" que probamos antes. Al
+    limitar el ANCHO acá arriba, las miniaturas (hermano de la foto, mismo
+    padre) quedan con el mismo ancho real y ya no se desalinean. %>
+  <div class="mx-auto max-w-[60vh]">
+    <div class="relative aspect-[3/4] overflow-hidden rounded-md bg-bg">
       <% if (mainAttrs) { %>
-        <img
-          id="gallery-main-image"
-          src="<%= mainAttrs.src %>"
-          srcset="<%= mainAttrs.srcset %>"
-          sizes="<%= mainAttrs.sizes %>"
-          alt="<%= primaryImage.alt_text %>"
-          class="h-full w-full object-cover"
-          fetchpriority="high"
+        <%# Fase 7 lightbox (design.md D5, spec R1): UN SOLO tabstop — el
+          botón envuelve la foto entera (área táctil = la foto), la lupa es
+          un <span aria-hidden> adentro, nunca un <button> separado. %>
+        <button
+          type="button"
+          data-gallery-open
+          aria-label="Ampliar foto de <%= product.name %>"
+          class="block h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]"
         >
+          <img
+            id="gallery-main-image"
+            src="<%= mainAttrs.src %>"
+            srcset="<%= mainAttrs.srcset %>"
+            sizes="<%= mainAttrs.sizes %>"
+            alt="<%= primaryImage.alt_text %>"
+            class="h-full w-full object-cover"
+            fetchpriority="high"
+          >
+          <span aria-hidden="true" class="absolute bottom-2 right-2 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-text">
+            <svg viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current stroke-2">
+              <circle cx="11" cy="11" r="7" />
+              <path stroke-linecap="round" d="M20 20l-3.6-3.6" />
+            </svg>
+          </span>
+        </button>
+        <%- include('../partials/product-lightbox', { productName: product.name, hasMultiple: product.images.length > 1 }) %>
       <% } %>
     </div>
     <% if (product.images.length > 1) { %>

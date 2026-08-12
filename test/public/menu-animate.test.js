@@ -54,3 +54,22 @@ test('computeNextFocusIndex: la lista recién recalculada (R2) puede crecer entr
   assert.equal(computeNextFocusIndex(7, 6, false), 0);
   assert.equal(computeNextFocusIndex(7, 0, true), 6);
 });
+
+// Fase 7 lightbox (design.md D2, tasks.md T3): mismo contrato reusado por
+// gallery.js para el wrap-around de prev/next entre fotos del overlay —
+// `shiftKey` se mapea a "ir a la anterior" (←/prev), sin `shiftKey` a "ir a
+// la siguiente" (→/next). Cero lógica nueva: estos casos DEMUESTRAN que la
+// reutilización para fotos es segura, no agregan una segunda implementación.
+test('computeNextFocusIndex reusada para fotos: n=1 SIEMPRE devuelve índice 0, sin importar prev/next ni el índice activo (R5 scenario 3)', () => {
+  assert.equal(computeNextFocusIndex(1, 0, false), 0, 'next con 1 sola foto');
+  assert.equal(computeNextFocusIndex(1, 0, true), 0, 'prev con 1 sola foto');
+});
+
+test('computeNextFocusIndex reusada para fotos: n=2 alterna 0↔1 en next (→) y en prev (←) (R5 scenarios 1-2)', () => {
+  // next (→): de la última foto vuelve a la primera (wrap-around).
+  assert.equal(computeNextFocusIndex(2, 1, false), 0);
+  assert.equal(computeNextFocusIndex(2, 0, false), 1);
+  // prev (←): de la primera foto vuelve a la última (wrap-around).
+  assert.equal(computeNextFocusIndex(2, 0, true), 1);
+  assert.equal(computeNextFocusIndex(2, 1, true), 0);
+});

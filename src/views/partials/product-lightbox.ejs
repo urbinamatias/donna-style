@@ -1,0 +1,82 @@
+<%# ------------------------------------------------------------------
+  Overlay del lightbox de la ficha de producto (Fase 7, design.md D3/D6,
+  spec R1-R8). Shell 100% server-rendered: gallery.js SOLO togglea `hidden`/
+  clases y asigna `src`/`srcset`/`alt`/`textContent` — cero `innerHTML`
+  (CLAUDE.md §3). Incluido desde product.ejs, dentro de la rama `if
+  (mainAttrs)`, con locals `productName` y `hasMultiple`.
+
+  QA real: los anillos de foco de ✕/prev/next usan `outline-white`, no
+  `--brand-ink` (el color AA estándar del resto del sitio) — acá los
+  controles están DIRECTO sobre el fondo oscuro del backdrop, y brand-ink
+  (marrón oscuro) se funde con ese fondo. Caso único en el sitio, no
+  aplica en ningún otro lado (el resto de los focus-visible siempre está
+  sobre fondos claros).
+
+  Empieza oculto (`hidden`) y fuera de la a11y tree (spec R2 scenario 1).
+  Focus trap: gallery.js REUSA `computeNextFocusIndex` de menu-animate.js
+  (contrato documentado en ese archivo, tasks.md T2/T4) — SIEMPRE controla
+  el foco a mano en cada Tab, nunca delega al navegador (mismo fix ya
+  aplicado al drawer). prev/next y la región `aria-live` se renderizan SOLO
+  si `hasMultiple` (D6, §4.5 principio de ausencia) — sin contador visible
+  (spec R6).
+------------------------------------------------------------------ %>
+<div data-lightbox hidden class="fixed inset-0 z-50">
+  <%# Bug real de QA: bg-[var(--brand-ink)]/90 combinaba una variable CSS
+    con un modificador de opacidad — Tailwind no resuelve bien esa
+    combinación salvo que la variable esté en formato RGB separado (acá está
+    en hex). Mismo patrón ya probado que nav-drawer.ejs/cart-drawer.ejs
+    (hex literal + opacidad), sin ese problema. %>
+  <div data-lightbox-backdrop class="absolute inset-0 bg-[#1c1917]/80"></div>
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Fotos de <%= productName %>"
+    tabindex="-1"
+    data-lightbox-dialog
+    class="relative z-10 flex h-full w-full items-center justify-center px-4 py-10"
+  >
+    <button
+      type="button"
+      data-lightbox-close
+      aria-label="Cerrar"
+      class="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current stroke-2">
+        <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+      </svg>
+    </button>
+
+    <%# QA real: un tamaño fijo (w-[95vw] h-[90vh]) hacía que el espacio
+      vacío del letterboxing de object-contain siguiera siendo parte de la
+      caja clickeable del <img> — el click "afuera de la foto" (en verdad
+      dentro de esa caja) ya no llegaba al fondo, rompiendo el cierre por
+      click afuera. Vuelve a max-h/max-w (se ajusta a su tamaño real, nunca
+      más grande que el contenido), así la caja clickeable coincide con lo
+      que se ve. %>
+    <img data-lightbox-image alt="" class="max-h-[90vh] max-w-[95vw] object-contain">
+
+    <% if (hasMultiple) { %>
+      <button
+        type="button"
+        data-lightbox-prev
+        aria-label="Foto anterior"
+        class="absolute left-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:left-4"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current stroke-2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        data-lightbox-next
+        aria-label="Foto siguiente"
+        class="absolute right-2 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:right-4"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 fill-none stroke-current stroke-2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
+      <p class="sr-only" aria-live="polite" data-lightbox-status></p>
+    <% } %>
+  </div>
+</div>

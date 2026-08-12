@@ -982,9 +982,77 @@ wiring real a DOM queda cubierto por QA manual en navegador.
 relación), confirmados sin regresiones. `npm test` completo + QA visual
 confirmados por la dueña desde Windows tras las dos rondas de fixes.
 
+### Fase 7 (continuación) — Lightbox de la ficha de producto ✅ cerrada
+
+Cuarto de 5 ciclos SDD independientes de "Pulido". Diferido desde Fase 3 a
+propósito. Ciclo SDD completo: proposal → spec → design → tasks → apply →
+verify → archive, Engram #442-#448.
+
+**Implementado**: click en la foto grande o en el ícono de lupa abre un
+overlay a pantalla completa con la foto en 1400px (tope ya existente de
+`image-urls.js`), navegación prev/next con wrap-around si hay 2+ fotos,
+cierre con click afuera/botón ✕/Escape, sin gestos de pinch/zoom (a
+propósito). `gallery.js` reescrito como dueño único del índice de foto
+(miniaturas y overlay son dos consumidores del mismo `show(i)`) — fix real
+del early-return que impedía el lightbox en productos de una sola foto.
+El overlay REUSA `computeNextFocusIndex` de `menu-animate.js` (mismo
+contrato ya corregido en el ciclo de accesibilidad: siempre controla el
+foco a mano, nunca delega al navegador), con guard defensivo por si el
+orden de carga de scripts fallara.
+
+**QA en vivo extensa, con bugs reales de CSS encontrados y corregidos**:
+1. Un intento de agrandar la foto del overlay con tamaño fijo rompió el
+   cierre por click-afuera (el espacio vacío del letterboxing quedaba
+   dentro de la caja clickeable del `<img>`) — revertido a `max-h`/`max-w`
+   (shrink-to-fit).
+2. **Bug real de Tailwind, no solo del lightbox**: `bg-[var(--brand-ink)]/90`
+   y `bg-surface/90` (variable CSS + modificador de opacidad) NUNCA
+   compilan — confirmado que ninguna de las dos clases existe en
+   `output.css`. Afectaba **6 lugares del sitio** (carrusel ×3, lupa de la
+   ficha, lightbox ×3, fondo del header) — invisibles hasta ahora porque
+   esos botones están sobre fondos claros donde un círculo "faltante" no
+   se nota. Todas cambiadas a `bg-white/NN` (`--surface` es literalmente
+   `#ffffff`, funcionalmente idéntico, y ese patrón sí compila).
+3. Foco de teclado invisible en los botones del overlay: `--brand-ink`
+   (marrón oscuro, el color AA estándar del sitio) se funde con el fondo
+   oscuro del backdrop — cambiado a `outline-white`, caso único en el
+   sitio (el resto sigue con `--brand-ink` porque está sobre fondos
+   claros).
+4. Foto de la ficha de producto requería scroll para verse completa (bug
+   preexistente, no del lightbox, corregido a pedido explícito): el
+   límite de ancho (`max-w-[60vh]`, matemáticamente 80vh×3/4) se aplica al
+   contenedor que envuelve foto+miniaturas juntas, no solo a la foto — la
+   primera iteración (límite solo en la foto) arreglaba el scroll pero
+   desalineaba las miniaturas, que seguían al ancho completo de la
+   columna.
+5. Hallazgo colateral del ciclo de accesibilidad anterior, no capturado
+   entonces: la miniatura activa en `gallery.js` usaba `border-[var(--brand)]`
+   (1.94:1, insuficiente) — el grep de esa fase solo buscó
+   `outline-[var(--brand)]`. Corregido a `border-[var(--brand-ink)]` ya
+   que se estaba reescribiendo el archivo de todos modos.
+
+382 tests (368 pasan, 13 fallos preexistentes de `sharp`/WSL), sin
+regresiones. `npm test` + QA visual completa confirmados por la dueña
+desde Windows tras varias rondas de fixes ("quedó perfecto").
+
+### Bugfix (fuera de SDD, encontrado en QA del lightbox) — Límite real de 6 fotos por producto
+
+No es parte de "Pulido" — bug real del panel admin (Fase 6b, ciclo ya
+cerrado). Encontrado porque la dueña, probando la navegación del lightbox
+con varias fotos, subió 12 sin ningún bloqueo (el texto de la UI dice
+"hasta 6"). Causa real: `MAX_FILES` en `middleware/upload.js` solo limita
+cuántos archivos entran en **una request** de `multer` — la ruta de
+"agregar fotos a un producto ya existente" (`admin/product-images.js`)
+nunca comparaba `existentes + nuevas` contra ese máximo, así que repetir
+el POST (6 + 6 = 12, exactamente lo reportado) no tenía techo real. Fix:
+chequeo explícito antes de procesar, con mensaje claro ("ya llegó al
+máximo de 6 fotos, borrá alguna antes de subir más"). Test de regresión
+nuevo en `test/routes/admin-product-images.test.js` (sube 6, después
+intenta una 7ª, confirma rechazo y que no se insertó de más).
+
 ## Fases sin empezar (resto de "Pulido")
 
-7 (continuación). Lightbox/zoom de la ficha, README de despliegue.
+7 (continuación). README de despliegue.
 
 ## Entorno / recordatorios operativos
 

@@ -46,7 +46,12 @@
     ancestro del drawer), el header queda transparente + difuminado sin
     romper el panel. %>
 <header class="sticky top-0 z-30 border-b border-border">
-  <div class="absolute inset-0 -z-10 bg-surface/60 backdrop-blur-sm"></div>
+  <%# Bug real de QA (mismo hallazgo que product-lightbox.ejs): bg-surface/60
+    nunca compilaba — `surface` está declarado en tailwind.config.js como
+    var(--surface) sin el formato RGB-triplet que Tailwind necesita para
+    combinar un color de tema con un modificador de opacidad. bg-white/60
+    es funcionalmente idéntico (--surface es #ffffff) y sí compila. %>
+  <div class="absolute inset-0 -z-10 bg-white/60 backdrop-blur-sm"></div>
   <div class="relative mx-auto flex max-w-[1400px] items-center px-6 py-3 sm:px-8">
     <div class="flex items-center">
       <%- include('./nav-drawer', { menuTree: typeof menuTree !== 'undefined' ? menuTree : [] }) %>

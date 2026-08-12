@@ -10,6 +10,16 @@
 // carousel.js/shouldStartAutoplay. Solo decide el índice de wrap-around;
 // nunca toca nodos.
 //
+// Fase 7 lightbox (design.md D1/D2, tasks.md T2): CONTRATO COMPARTIDO —
+// `gallery.js` REUSA esta misma función (global de script clásico, cargada
+// acá con `defer` ANTES que `bodyScripts` en main.ejs, ver tasks.md T4) para
+// su focus trap Y para el wrap-around de prev/next entre fotos. No
+// duplicar esta lógica en gallery.js: cualquier fix futuro del trap (como el
+// de más abajo) debe corregirse en UN solo lugar. gallery.js llama con un
+// guard defensivo (`typeof computeNextFocusIndex === 'function' ? ... : 0`)
+// para nunca lanzar `ReferenceError` si el orden de scripts se rompiera.
+//
+
 // QA real (fase7-accesibilidad): la primera versión solo interceptaba Tab
 // en los BORDES (primero/último) y dejaba el resto al comportamiento nativo
 // del navegador — asumía que el próximo focusable en el orden nativo del
