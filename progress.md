@@ -1050,9 +1050,59 @@ máximo de 6 fotos, borrá alguna antes de subir más"). Test de regresión
 nuevo en `test/routes/admin-product-images.test.js` (sube 6, después
 intenta una 7ª, confirma rechazo y que no se insertó de más).
 
-## Fases sin empezar (resto de "Pulido")
+### Fase 7 (continuación) — README de despliegue ✅ cerrada
 
-7 (continuación). README de despliegue.
+Quinto y último de 5 ciclos SDD independientes de "Pulido". Ciclo SDD
+completo: proposal → spec → design → tasks → apply → verify → archive,
+Engram #449-#453.
+
+`README.md` (de solo título a 196 líneas) genérico, sin proveedor de
+hosting fijo — decisión ya tomada, se ajusta cuando haya uno real. Cubre:
+requisitos, variables de entorno (tabla completa cruzada contra
+`src/config/env.js`, marcando obligatorias vs. default silencioso — ej.
+`SITE_URL` cae a `localhost` sin avisar en producción si no se seteó),
+dos checklists separados ("Primer deploy" con `create-admin` y carga de
+catálogo, de una sola vez; "Deploys siguientes", sin repetirlos), y 7
+"Gotchas" documentados con evidencia real de código (el seed que hace
+`TRUNCATE` de 9 tablas, `uploads/` sin volumen persistente pierde fotos en
+cada redeploy, `sharp` atado a la plataforma de destino, HTTPS obligatorio
+por la cookie `secure`, la migración de sesiones explícita, `output.css`
+gitignored, nota de no comprimir dos veces si el hosting agrega su propio
+proxy con gzip). `.env.example` completado con las 6 variables que ya
+usaba el código pero no estaban documentadas (`ADMIN_EMAIL`/
+`ADMIN_PASSWORD`, `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`/
+`DB_HOST_PORT`).
+
+**Bug real de producción encontrado y corregido en la propuesta, sumado
+al alcance a pedido explícito de la dueña** (dejó de ser un frente
+puramente de documentación): faltaba `app.set('trust proxy', 1)` en
+`src/app.js`. Sin él, detrás de cualquier proxy que termina TLS (PaaS,
+Nginx, etc.), Express ve `http` en `req.protocol` y `express-session` se
+niega a emitir la cookie con `secure: true` — el login de admin y el
+carrito se rompían EN SILENCIO, sin error ni log, en el primer deploy
+real detrás de cualquier proxy estándar. Condicionado a
+`NODE_ENV=production`, ubicado junto a los demás `app.set` (no pegado al
+bloque de `session()`) para que la garantía de "antes de la sesión" no
+dependa de la posición relativa a middleware que alguien podría reordenar
+después. **Hallazgo colateral del mismo fix**: `middleware/rate-limit.js`
+usa `req.ip` como clave del balde de intentos de login — sin `trust
+proxy`, todos los visitantes detrás de un proxy comparten la misma IP
+resuelta, rompiendo el aislamiento del rate limit. Resuelto por la misma
+línea, sin cambios adicionales.
+
+Verificado con `test/routes/trust-proxy.test.js` (2 casos contra
+`GET /health`, simulando `X-Forwarded-Proto: https`) — bloqueado en WSL
+por el límite conocido de `sharp` (mismo patrón de siempre), confirmado
+en verde por la dueña desde Windows junto con el resto de la suite
+(383/383). Diff real: 271 líneas, bien por debajo del presupuesto de 400
+— no hizo falta la excepción de tamaño pre-aprobada.
+
+## Fase 7 — Pulido: completa ✅
+
+Los 5 frentes de "Pulido" (páginas de error, performance, accesibilidad,
+lightbox, README de despliegue) están cerrados. Fase 7 completa.
+
+## Fases sin empezar
 
 ## Entorno / recordatorios operativos
 

@@ -27,6 +27,17 @@ const app = express();
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Fase 7: detrás de un reverse proxy que termina TLS, Express ve `http` en
+// `req.protocol` y express-session se NIEGA a emitir la cookie con
+// `secure: true` (línea ~101) — el login de admin y el carrito quedan rotos
+// en silencio, sin error ni log. `1` = confiamos en UN hop (el proxy
+// inmediato); con dos proxies encadenados hay que subir el número. Solo en
+// producción: en dev/test queda el default `false` de Express y nadie puede
+// falsear su IP vía X-Forwarded-For (req.ip alimenta middleware/rate-limit.js).
+if (config.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Disponibles en todas las vistas sin tener que pasarlas en cada res.render
 // (§9 servicio compartido de formato, mismo patrón que availability.js).
 app.locals.formatPrice = formatPrice;
