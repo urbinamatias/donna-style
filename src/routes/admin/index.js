@@ -16,6 +16,7 @@ const stockRouter = require('./stock');
 const ordersRouter = require('./orders');
 const carouselRouter = require('./carousel');
 const settingsRouter = require('./settings');
+const pagesRouter = require('./pages');
 const { requireAdmin } = require('../../middleware/auth');
 const productsModel = require('../../models/products');
 const ordersModel = require('../../models/orders');
@@ -88,5 +89,9 @@ router.use(ordersRouter);
 // `/admin/configuracion` nunca son capturados por el comodín `/:parentSlug`.
 router.use(carouselRouter);
 router.use(settingsRouter);
+// Páginas informativas (spec informational-pages): mismo criterio de
+// montaje, ANTES de `publicRouter` (app.js) para que `/admin/paginas`
+// nunca sea capturado por el comodín `/:parentSlug`.
+router.use(pagesRouter);
 
 module.exports = router;

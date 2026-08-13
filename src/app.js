@@ -11,7 +11,9 @@ const adminRouter = require('./routes/admin');
 const publicRouter = require('./routes/public');
 const categoriesModel = require('./models/categories');
 const siteSettingsModel = require('./models/site-settings');
+const pagesModel = require('./models/pages');
 const { formatPrice, formatDate, toScriptJson } = require('./services/format');
+const { sanitizeInline } = require('./services/rich-text');
 const { computeTransferPrice, computeInstallmentValue } = require('./services/pricing');
 const { statusBadge, transitionButtonClass } = require('./services/orders-status');
 const { imageSrc, imageAttrs, slideImageAttrs } = require('./services/image-urls');
@@ -43,6 +45,11 @@ if (config.NODE_ENV === 'production') {
 app.locals.formatPrice = formatPrice;
 app.locals.formatDate = formatDate;
 app.locals.toScriptJson = toScriptJson;
+// Páginas informativas (design.md D5): sanitizeInline se llama en RENDER
+// TIME desde la vista (`<%- sanitizeInline(page.description_html) %>`),
+// nunca precomputado en la ruta — defensa en profundidad ante filas
+// escritas fuera del router admin, mismo criterio documentado en D5.
+app.locals.sanitizeInline = sanitizeInline;
 // Precio con transferencia/efectivo (30% off) y valor de cuota (obs
 // #406/#407) sobre `product.base_price` — mismo patrón de helper puro
 // expuesto en app.locals que formatPrice, usado desde product-card.ejs.
@@ -143,8 +150,18 @@ app.use((req, res, next) => {
 // reiniciar el proceso (spec "Panel value wins").
 app.use(async (req, res, next) => {
   try {
-    const [menuTree, settings] = await Promise.all([categoriesModel.findMenuTree(), siteSettingsModel.getAll()]);
+    // Páginas informativas (spec site-navigation "Enabled pages appear in
+    // menu and footer"): TERCERA query paralela, misma fuente única para
+    // nav-drawer.ejs (menú) y footer.ejs — nunca duplicada por vista.
+    // `findActiveForMenu()` ya filtra por `is_active` y ordena por
+    // `sort_order, id`, así que este local es directamente el orden final.
+    const [menuTree, settings, pages] = await Promise.all([
+      categoriesModel.findMenuTree(),
+      siteSettingsModel.getAll(),
+      pagesModel.findActiveForMenu(),
+    ]);
     res.locals.menuTree = menuTree;
+    res.locals.pages = pages;
     const announcementText = settings.announcement_bar_text;
     res.locals.announcementItems = announcementText
       ? announcementText.split('•').map((s) => s.trim()).filter(Boolean)
@@ -191,6 +208,7 @@ app.use((err, req, res, next) => {
     view: '../pages/500',
     title: 'Ocurrió un error',
     menuTree: res.locals.menuTree || [],
+    pages: res.locals.pages || [],
     announcementItems: res.locals.announcementItems || [],
     storeConfig: res.locals.storeConfig || storeConfig.fromEnv(),
     csrfToken: res.locals.csrfToken || '',

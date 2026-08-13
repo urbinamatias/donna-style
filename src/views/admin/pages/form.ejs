@@ -1,0 +1,66 @@
+<%# Alta/edición de página informativa (spec informational-pages "Page
+  creation"/"Page editing", "Slug is never editable by hand"). Nunca hay
+  input de slug en ninguno de los dos modos — se deriva 100% del lado del
+  server, una sola vez, en el alta. %>
+<div class="flex flex-col gap-6">
+  <h1 class="font-brand text-3xl"><%= page && page.id ? 'Editar página' : 'Nueva página' %></h1>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <p class="rounded border-2 border-error bg-white px-4 py-3 text-base text-error"><%= error %></p>
+  <% } %>
+
+  <form
+    method="POST"
+    action="<%= page && page.id ? `/admin/paginas/${page.id}` : '/admin/paginas' %>"
+    class="flex flex-col gap-4"
+  >
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <%# Bug de accesibilidad (QA ronda 4): la dueña reportó que el foco
+      seguía yéndose al campo con solo cliquear el LABEL, y esta vez lo
+      confirmó también para "Título" (ronda 3 solo había restructurado
+      Descripción, porque un <label> envolviendo un <input> real es
+      normalmente correcto/esperado — pero la dueña aclaró que el
+      requisito real aplica a AMBOS campos: "el foco en las cajas de texto
+      debe ponerse sólo al interactuar directamente con las mismas"). Se
+      aplica el mismo patrón que Descripción: el <label> deja de envolver
+      el <input>; el texto visible pasa a un <span> con id propio, y el
+      <input> se asocia por `aria-labelledby` en vez de anidamiento. %>
+    <div class="flex flex-col gap-1 text-sm">
+      <span id="pages-title-label">Título</span>
+      <input type="text" name="title" value="<%= page ? page.title : '' %>" maxlength="60" required
+             aria-labelledby="pages-title-label"
+             class="w-full rounded border border-border px-3 py-2">
+    </div>
+
+    <%# Bug de accesibilidad (QA ronda 3): un <label> nativo solo debe
+      envolver un elemento labelable real (input/textarea/select...). Un
+      contenteditable NO es labelable per HTML spec, así que envolver todo
+      el bloque —incluido el mount que rich-text-editor.js inserta— hacía
+      que un click en cualquier parte de la caja (texto del label, gaps,
+      hint) reenviara foco/click al descendiente labelable de forma
+      incorrecta. El <label> ahora envuelve SOLO el texto "Descripción"; el
+      resto (hint, toolbar, textarea/mount) vive en un contenedor hermano
+      afuera del <label>, con el mismo layout visual vía las mismas clases
+      flex/gap. La asociación accesible se mantiene con
+      `aria-labelledby` en el <textarea> de origen, que rich-text-editor.js
+      copia al mount contenteditable que lo reemplaza visualmente. %>
+    <div class="flex flex-col gap-1 text-sm">
+      <span id="pages-description-label">Descripción</span>
+      <span class="text-xs font-normal text-textMuted">Negrita, cursiva, subrayado y tachado. Sin listas, links ni encabezados.</span>
+      <%# Contenido inicial del editor enriquecido: ya sanitizado en RENDER
+        TIME (design.md D5, defensa en profundidad) — rich-text-editor.js lo
+        clona UNA sola vez hacia el contenteditable real, nunca vuelve a
+        construir HTML dinámico a partir de acá. Vive en un <template>
+        (nodo inerte, el parser de HTML nunca lo ejecuta) para que
+        rich-text-editor.js pueda leerlo sin necesitar innerHTML sobre datos
+        dinámicos en ningún punto del script. %>
+      <template data-rich-text-initial><%- page ? sanitizeInline(page.description_html) : '' %></template>
+      <textarea name="description" data-rich-text-source rows="8" required
+                aria-labelledby="pages-description-label"
+                class="w-full rounded border border-border px-3 py-2"><%= page ? page.description_html : '' %></textarea>
+    </div>
+
+    <button type="submit" class="self-start rounded bg-text px-4 py-2 text-bg">Guardar</button>
+  </form>
+</div>

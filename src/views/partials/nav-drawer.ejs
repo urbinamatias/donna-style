@@ -40,6 +40,16 @@
         <li>
           <%- include('./mega-menu', { menuTree }) %>
         </li>
+        <%# Páginas informativas (spec site-navigation "Enabled pages appear
+          in menu and footer"): siblings de "Productos", NUNCA anidadas
+          dentro del mega-menu de categorías. Con 0 páginas habilitadas
+          (typeof pages !== 'undefined' ? pages : []) queda vacío y este
+          bloque no agrega ningún <li> — principio de ausencia (§4.5). %>
+        <% (typeof pages !== 'undefined' ? pages : []).forEach(function (page) { %>
+          <li class="border-b border-border">
+            <a href="/<%= page.slug %>" class="block truncate px-4 py-3 text-sm font-medium hover:text-brandInk focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]"><%= page.title %></a>
+          </li>
+        <% }) %>
       </ul>
     </nav>
   </div>

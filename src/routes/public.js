@@ -7,6 +7,7 @@ const productsModel = require('../models/products');
 const productImagesModel = require('../models/product-images');
 const variantsModel = require('../models/variants');
 const carouselSlidesModel = require('../models/carousel-slides');
+const pagesModel = require('../models/pages');
 const { computeAvailability, buildDecisionTable } = require('../services/availability');
 const { buildHomeSeo, buildCategorySeo, buildProductSeo, buildPrivateSeo, buildProductJsonLd } = require('../services/seo');
 const { searchProductsByName } = require('../services/search');
@@ -225,6 +226,29 @@ async function renderCategoryListing(req, res, next, { category, categoryIds, br
     next(err);
   }
 }
+
+// Página informativa (spec informational-pages "Public visibility follows
+// enabled state", design.md D7): registrada ACÁ, INMEDIATAMENTE ANTES del
+// comodín de categoría — mismo criterio de orden que /buscar más arriba.
+// `findActiveBySlug` devuelve null tanto si no existe como si está
+// deshabilitada (nunca distingue los dos casos hacia afuera), así que un
+// slug de página nunca "shadowea" un slug de categoría homónimo: si no hay
+// página ACTIVA con ese slug, cae directo al handler de categoría de abajo
+// vía `next()`, sin tocar el 404.
+router.get('/:pageSlug', async (req, res, next) => {
+  try {
+    const page = await pagesModel.findActiveBySlug(req.params.pageSlug);
+    if (!page) return next();
+
+    res.render('layouts/main', {
+      view: '../pages/info-page',
+      ...buildPrivateSeo({ title: `${page.title} — ${config.NOMBRE_TIENDA}` }),
+      page,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Categoría de primer nivel: rollup si tiene hijas (§0.1 regla 2), listado
 // directo si es hoja (Noche, 2x1, o una hija visitada por URL directa).

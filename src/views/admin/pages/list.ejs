@@ -1,0 +1,73 @@
+<%# Listado de páginas informativas (spec informational-pages +
+  admin-ui-conventions "Visual and behavioural consistency"). Clon
+  estructural de admin/carousel/list.ejs + barra de filtro en vivo copiada
+  de admin/products/list.ejs. Toggle en la fila (spec "One-click
+  enable/disable"), reorder solo ↑/↓ (nunca drag-and-drop), borrado con
+  confirmación que advierte sobre links rotos (mismo texto/estilo que
+  carousel). %>
+<div class="flex flex-col gap-6">
+  <div class="flex items-center justify-between">
+    <h1 class="font-brand text-3xl">Páginas</h1>
+    <a href="/admin/paginas/nueva" class="rounded-lg bg-brand px-4 py-2 text-base font-semibold text-brandInk">+ Nueva página</a>
+  </div>
+
+  <form method="GET" action="/admin/paginas" data-live-filter class="flex flex-wrap items-center gap-3 rounded-lg border-2 border-border bg-surface p-3 text-base">
+    <label class="sr-only" for="pages-filter-q">Buscar por título</label>
+    <input type="search" id="pages-filter-q" name="q" value="<%= filters.q %>" maxlength="100"
+           placeholder="Buscar por título..." data-live-filter-debounce
+           class="w-full sm:w-auto sm:min-w-[12rem] sm:flex-1 rounded border border-border px-2 py-1.5 text-base">
+    <noscript><button type="submit" class="rounded-lg border-2 border-borderStrong px-4 py-1.5 text-base font-medium">Filtrar</button></noscript>
+  </form>
+
+  <% if (pages.length === 0) { %>
+    <p class="text-textMuted">Todavía no hay páginas cargadas.</p>
+  <% } else { %>
+    <ul class="flex flex-col gap-3">
+      <% pages.forEach(function (page, i) { %>
+        <li class="flex flex-col gap-2 rounded border border-border p-3 sm:flex-row sm:items-center">
+          <div class="flex flex-1 flex-col gap-1">
+            <span class="font-medium">
+              <%= page.title %>
+              <span class="ml-1 rounded px-2 py-0.5 text-xs <%= page.is_active ? 'bg-success/10 text-success' : 'bg-bg text-textMuted' %>">
+                <%= page.is_active ? 'Habilitada' : 'Deshabilitada' %>
+              </span>
+            </span>
+            <span class="text-xs text-textMuted">/<%= page.slug %></span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 text-sm">
+            <a href="/admin/paginas/<%= page.id %>/editar" class="rounded border border-border px-2 py-1 text-xs">Editar</a>
+
+            <form method="POST" action="/admin/paginas/<%= page.id %>/estado?q=<%= encodeURIComponent(filters.q) %>">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="rounded border border-border px-2 py-1 text-xs">
+                <%= page.is_active ? 'Deshabilitar' : 'Habilitar' %>
+              </button>
+            </form>
+
+            <form method="POST" action="/admin/paginas/<%= page.id %>/mover">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="direction" value="up">
+              <button type="submit" <%= i === 0 ? 'disabled' : '' %>
+                      class="rounded border border-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Subir página">↑</button>
+            </form>
+            <form method="POST" action="/admin/paginas/<%= page.id %>/mover">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="direction" value="down">
+              <button type="submit" <%= i === pages.length - 1 ? 'disabled' : '' %>
+                      class="rounded border border-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Bajar página">↓</button>
+            </form>
+
+            <form method="POST" action="/admin/paginas/<%= page.id %>/eliminar"
+                  onsubmit="return confirm('¿Borrar esta página? Esta acción no se puede deshacer y los enlaces externos que apunten a ella dejarán de funcionar. Si preferís mantener el link, deshabilitala en vez de borrarla.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="rounded border border-error px-2 py-1 text-xs text-error">Borrar</button>
+            </form>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>

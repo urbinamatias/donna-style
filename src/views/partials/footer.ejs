@@ -8,7 +8,7 @@
   arrepentimiento) es texto/enlace externo estático, no una página interna.
 ------------------------------------------------------------------ %>
 <footer class="border-t border-border bg-surface">
-  <div class="mx-auto max-w-[1400px] px-4 py-10 grid gap-8 md:grid-cols-3">
+  <div class="mx-auto max-w-[1400px] px-4 py-10 grid gap-8 <%= (typeof pages !== 'undefined' && pages.length > 0) ? 'md:grid-cols-4' : 'md:grid-cols-3' %>">
     <div>
       <div class="mb-3"><%- include('./wordmark', { size: 'sm' }) %></div>
       <p class="text-sm text-textMuted">Indumentaria femenina. Envíos a todo el país, coordinados por WhatsApp.</p>
@@ -22,6 +22,21 @@
         <% }) %>
       </ul>
     </nav>
+
+    <%# Páginas informativas (spec site-navigation "Enabled pages appear in
+      menu and footer"): mismo orden que nav-drawer.ejs, misma fuente
+      (res.locals.pages). Con 0 páginas habilitadas la columna entera no se
+      renderiza — principio de ausencia (§4.5), sin encabezado vacío. %>
+    <% if (typeof pages !== 'undefined' && pages.length > 0) { %>
+      <nav aria-label="Información" class="text-sm">
+        <h2 class="font-semibold mb-3 uppercase tracking-wide">Información</h2>
+        <ul class="space-y-2">
+          <% pages.forEach(function (page) { %>
+            <li><a href="/<%= page.slug %>" class="text-textMuted hover:text-brandInk"><%= page.title %></a></li>
+          <% }) %>
+        </ul>
+      </nav>
+    <% } %>
 
     <div class="text-sm">
       <h2 class="font-semibold mb-3 uppercase tracking-wide">Contacto</h2>

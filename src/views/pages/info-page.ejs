@@ -1,0 +1,11 @@
+<%# Ficha pública de una página informativa (spec informational-pages "Page
+  typography", design.md D7). Título SIEMPRE estrictamente más grande que el
+  cuerpo — el allowlist de rich-text.js (D6) ya garantiza que ningún
+  formato del cuerpo puede escalar tamaño (sin h1-h6, sin font-size
+  inline), así que la clase del contenedor del cuerpo nunca cambia según el
+  contenido. `sanitizeInline` se llama ACÁ, en render time (D5, defensa en
+  profundidad) — la única excepción de output sin escapar de esta vista. %>
+<section class="mx-auto max-w-[720px] px-4 py-10">
+  <h1 class="font-brand text-2xl sm:text-3xl"><%= page.title %></h1>
+  <div class="prose prose-sm max-w-none text-sm mt-6"><%- sanitizeInline(page.description_html) %></div>
+</section>
