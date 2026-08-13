@@ -71,7 +71,9 @@
       igual criterio que el magnifier del header — ausente en
       carrito/checkout/pedido/admin. %>
   <% if (!locals.hideFloatingUI) { %><%- include('../partials/whatsapp-fab') %><% } %>
+  <%- include('../partials/cookie-banner') %>
   <script src="/js/menu-animate.js" defer></script>
+  <script src="/js/cookie-banner.js" defer></script>
   <%# Fase 4: cargados en toda página porque el drawer vive en el header
       (cart.js) y las cards de producto pueden aparecer en home/categoría/
       ficha (variant-selector.js) — ambos no-opean si no encuentran sus

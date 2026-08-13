@@ -30,7 +30,7 @@
 
   <div data-cart-empty class="flex flex-col items-center gap-3 py-16 text-center <%= summary.lines.length === 0 ? '' : 'hidden' %>">
     <p class="text-textMuted">Todavía no agregaste nada.</p>
-    <a href="/" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Ver catálogo</a>
+    <a href="/" class="rounded bg-[var(--brand-gradient)] px-4 py-2 text-sm font-semibold text-text">Ver catálogo</a>
   </div>
 
   <ul data-cart-lines class="mb-6 flex flex-col divide-y divide-border border-y border-border <%= summary.lines.length === 0 ? 'hidden' : '' %>">
@@ -77,7 +77,7 @@
     <%# Fase 5 (§5.8): oculto cuando el carrito está vacío, mismo criterio
         que el resto de data-cart-footer — cart.js no re-renderiza este CTA
         dinámicamente, solo togglea `hidden` en el contenedor completo. %>
-    <a href="/checkout" class="w-full rounded px-4 py-3 text-center text-sm font-semibold text-text sm:w-auto" style="background: var(--brand-gradient);">
+    <a href="/checkout" class="w-full rounded bg-[var(--brand-gradient)] px-4 py-3 text-center text-sm font-semibold text-text sm:w-auto">
       Finalizar pedido
     </a>
   </div>

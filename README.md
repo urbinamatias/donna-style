@@ -16,7 +16,9 @@ Node.js 20+, Express 4, PostgreSQL 15+, EJS, Tailwind CSS (compilado por
 CLI, nunca CDN), `sharp` para procesamiento de imágenes (recorte,
 redimensionado, WebP), `express-session` + `connect-pg-simple` para
 sesiones respaldadas en Postgres, `bcryptjs` para el hash de la contraseña
-de administración. Detalle completo en `CLAUDE.md` §1.
+de administración, `helmet` para los headers de seguridad (CSP sin
+`unsafe-inline` ni `unsafe-eval`, ver "Gotchas"). Detalle completo en
+`CLAUDE.md` §1.
 
 ## Requisitos
 
@@ -63,14 +65,27 @@ Checklist de un entorno productivo nuevo, en orden:
    `sharp` es un binario nativo).
 3. `npm run build:css`.
 4. `npm run migrate`.
-5. `npm run create-admin -- --email <email> --password <password>` (o vía
+5. `npm run seed:categories` — siembra ÚNICAMENTE el árbol de 19 categorías
+   reales de `prompt.md` §0.1 (pedido expreso de la dueña: son el único dato
+   de catálogo que arranca precargado). A diferencia de `npm run seed`, este
+   script nunca hace `TRUNCATE`, es seguro en producción, e idempotente — se
+   puede correr de nuevo sin duplicar categorías.
+6. `npm run create-admin -- --email <email> --password <password>` (o vía
    `ADMIN_EMAIL`/`ADMIN_PASSWORD`) — una sola vez, da de alta la única
    cuenta de administración.
-6. Proveer un **volumen persistente** montado en `src/public/uploads/`
+7. Proveer un **volumen persistente** montado en `src/public/uploads/`
    antes de arrancar (ver "Gotchas").
-7. `npm start`.
-8. Cargar el catálogo inicial desde el panel de administración
-   (`/admin`) — no hay importador ni seed de producción.
+8. `npm start`.
+9. Cargar desde el panel de administración (`/admin`) — no hay importador
+   ni seed de producción para nada de esto:
+   - Catálogo: productos, imágenes, carrusel.
+   - **Páginas institucionales** (`/admin/paginas`, `prompt.md` §5.10):
+     Envíos y retiros, Cambios y devoluciones, Medios de pago, Contacto,
+     Términos y condiciones, Botón de arrepentimiento. Ninguna viene
+     precargada — la tabla `pages` arranca vacía a propósito (ver
+     "Qué SÍ y qué NO pasa a producción" más abajo). Hasta que se cargue
+     al menos una, el ítem "Información" no aparece en el menú ni en el
+     footer (principio de ausencia, §4.5).
 
 ## Deploys siguientes
 
@@ -83,8 +98,65 @@ Checklist de una actualización sobre un entorno ya provisionado:
    migraciones nuevas.
 5. Reiniciar el proceso.
 
-`create-admin` y la carga inicial del catálogo (pasos 5 y 8 de "Primer
-deploy") son de una sola vez — **no se repiten acá**.
+`seed:categories`, `create-admin` y la carga inicial del catálogo (pasos 5,
+6 y 9 de "Primer deploy") son de una sola vez — **no se repiten acá**.
+
+## Post-lanzamiento: cómo aplicar un fix o feature nuevo
+
+El proyecto no tiene entorno de staging. Con eso en mente, el flujo para
+cualquier cambio detectado después de que la tienda ya está en vivo con
+usuarios reales es el mismo de siempre — desarrollo local contra Postgres
+de dev, después "Deploys siguientes" de arriba — con dos cuidados
+adicionales:
+
+1. **Desarrollar y probar localmente primero**, nunca directo contra
+   producción. `npm test` en verde antes de tocar el servidor real.
+2. **Si el cambio incluye una migración de esquema** (`db/migrations/`),
+   tiene que ser **aditiva**: agregar una columna/tabla nueva, nunca
+   `DROP`/`ALTER` destructivo sobre algo que ya tiene datos reales cargados.
+   Sin staging, la primera vez que esa migración corre contra datos reales
+   es en producción — no hay margen para "probarla y revertir" si algo
+   sale mal.
+3. **Antes de correr una migración contra la base con datos reales**
+   (no aplica a deploys que sean solo código, sin `npm run migrate` nuevo):
+   un `pg_dump` manual de esa sesión puntual. Todavía no hay backup
+   automatizado (ver "Operación cotidiana"), así que este paso es la única
+   red de contención hasta que se defina una estrategia real.
+4. Deployar con el checklist de "Deploys siguientes" de arriba. Un fix
+   chico y acotado no necesita ciclo SDD completo (proposal → spec →
+   design → tasks → apply → verify → archive) — varios ajustes de
+   `progress.md` ya se hicieron directo, sin ese ciclo, cuando el cambio
+   era pequeño y bien entendido. Reservá el ciclo completo para features
+   nuevas de alcance real.
+5. **Nunca correr `npm run seed`** contra la base de producción una vez que
+   hay datos reales — TRUNCATEa 9 tablas (ver "Gotchas" → "El seed BORRA
+   datos"). Si hace falta agregar datos de referencia nuevos en producción
+   (por ejemplo, una categoría más), se hace desde `/admin` o con un script
+   dedicado nuevo del mismo estilo que `db/seed-categories.js` (nunca
+   `TRUNCATE`, siempre idempotente).
+
+## Qué SÍ y qué NO pasa a producción
+
+Decisión explícita de la dueña: de todo lo que hoy vive en la base de
+desarrollo, solo dos cosas están pensadas para llegar tal cual a
+producción. Todo lo demás es dato de prueba, cargado durante el desarrollo
+para poder probar cada fase, y se reemplaza por contenido real desde cero.
+
+| Dato | ¿Pasa a producción? | Cómo |
+|---|---|---|
+| Árbol de 19 categorías (§0.1) | **Sí** | `npm run seed:categories` (paso 5 de "Primer deploy") |
+| Cuenta de administración | **Sí**, con las credenciales reales | `npm run create-admin` con el email/contraseña definitivos (paso 6) — no es una migración de datos, es crearla directo con el valor final |
+| Productos, variantes, stock | No — son ~19 productos de prueba | Se cargan de cero desde `/admin/productos` |
+| Imágenes de producto | No — son placeholders genéricos | Se suben de cero desde el panel, junto con cada producto |
+| Slides del carrusel | No — son de prueba | Se cargan de cero desde `/admin/carrusel` |
+| Páginas institucionales | No — la tabla `pages` arranca vacía | Se cargan de cero desde `/admin/paginas` (ver paso 9 de arriba) |
+| Pedidos (`orders`) | No, nunca | Son datos de prueba de QA, no pedidos reales |
+| Configuración (`site_settings`) | No, salvo lo que la dueña cargue de nuevo en `/admin/configuracion` | El resolver de 3 niveles (panel → `.env` → default) sigue funcionando sin nada cargado ahí — usa las variables de entorno de la tabla de arriba mientras tanto |
+
+**Por eso el primer deploy usa `npm run migrate` + `npm run
+seed:categories`, nunca `npm run seed`** — este último mezcla las
+categorías reales con los ~19 productos/imágenes/carrusel de prueba y
+además hace `TRUNCATE` (ver "Gotchas").
 
 ## Operación cotidiana
 
@@ -97,7 +169,51 @@ deploy") son de una sola vez — **no se repiten acá**.
 - **Nunca correr `npm run seed` contra la base de producción real** — ver
   el aviso destacado en "Gotchas".
 
+## Seguridad — checklist de `prompt.md` §8.1
+
+Estado de cada requisito, con dónde vive en el código, para no tener que
+volver a auditar esto en cada deploy:
+
+| Requisito | Estado | Dónde |
+|---|---|---|
+| Queries parametrizadas, cero concatenación SQL | ✅ | todos los `models/*.js` |
+| Sin `innerHTML`/`outerHTML`/`insertAdjacentHTML`/`document.write` con datos dinámicos | ✅ | `src/public/js/**` |
+| `<%- %>` solo en descripción de producto y páginas institucionales (sanitizadas con `sanitize-html`) + JSON embebido (`toScriptJson`) | ✅ | `CLAUDE.md` §3 documenta las excepciones |
+| CSRF en todo form que muta estado | ✅ | `src/middleware/csrf.js`, global en `src/app.js` |
+| `helmet` con CSP sin `unsafe-inline` ni `unsafe-eval` | ✅ | `src/app.js` — ver "CSP de helmet" en Gotchas para las restricciones que esto impone en código nuevo |
+| Rate limiting: login | ✅ | `src/middleware/rate-limit.js` (`loginRateLimit`, 5/15min por IP) |
+| Rate limiting: búsqueda | ✅ | `src/middleware/search-rate-limit.js` (30/60s por IP) |
+| Rate limiting: creación de pedidos | ✅ | `src/middleware/checkout-rate-limit.js` (10/10min por IP) |
+| Validación de MIME real (no extensión) en uploads | ✅ | `src/services/images.js#assertUsable` (magic bytes) |
+| Secretos solo por variables de entorno | ✅ | `src/config/env.js`, tabla de arriba |
+| Banner de cookies dismissible, persistido en `localStorage` (§5.1) | ✅ | `src/views/partials/cookie-banner.ejs` + `src/public/js/cookie-banner.js` |
+
 ## Gotchas
+
+### CSP de helmet: qué asume sobre el código
+
+La CSP (`src/app.js`) es estricta a propósito: `script-src 'self'`,
+`style-src 'self'`, sin `unsafe-inline` ni `unsafe-eval` en ninguna de las
+dos. Cualquier código nuevo tiene que respetar esto o el navegador lo
+bloquea EN SILENCIO (sin error de servidor, mismo patrón de bug que ya
+pasó varias veces en el proyecto con Tailwind/`qs`):
+
+- **Nada de `onclick=`/`onsubmit=`/etc. inline en las vistas.** Si hace
+  falta confirmar una acción destructiva, usar `data-confirm="mensaje"` +
+  `src/public/js/confirm-submit.js` (ya escucha `submit` en todo el
+  documento, no hay que tocarlo).
+- **Nada de `style="..."` inline.** Usar clases de Tailwind, incluidas las
+  arbitrarias con variables CSS (`bg-[var(--brand-gradient)]`, ya usado en
+  toda la tienda pública).
+- `img-src` incluye `'self'` y `blob:` (este último exclusivamente para el
+  preview de recorte de `image-upload.js`, que carga el archivo elegido en
+  un `<img>` en memoria vía `URL.createObjectURL` antes de dibujarlo en el
+  `<canvas>`). Si se agrega cualquier imagen servida desde otro origen
+  (un CDN, por ejemplo), hay que sumar ese host a `img-src` a mano.
+- `crossOriginEmbedderPolicy`/`crossOriginResourcePolicy` están
+  desactivados a propósito — el preset estricto por default de `helmet`
+  rompía la posibilidad de que WhatsApp/Facebook/Instagram traigan
+  `og:image` para la vista previa del link compartido (§5.6).
 
 ### El seed BORRA datos
 

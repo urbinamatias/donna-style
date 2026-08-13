@@ -1,0 +1,25 @@
+<%# ------------------------------------------------------------------
+  Banner de cookies (§5.1: "dismissible, persistido en localStorage").
+  Server-side siempre presente en el DOM (progressive enhancement, igual
+  criterio que el resto del sitio): sin JS, el botón "Entendido" no hace
+  nada (mismo nivel de degradación aceptable que el botón ✕ del carrito en
+  mobile, ver progress.md Fase 4 bug 8) pero el sitio sigue siendo
+  100% usable. Con JS, cookie-banner.js oculta el banner al cargar si ya
+  hubo consentimiento, y lo cierra con fade al tocar "Entendido".
+
+  Solo vive en layouts/main.ejs (sitio público) — el panel admin usa su
+  propio layout (src/views/admin/layouts), así que nunca aparece ahí.
+------------------------------------------------------------------ %>
+<div data-cookie-banner
+     class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface px-4 py-4 opacity-0 translate-y-2 pointer-events-none transition-[opacity,transform] duration-200 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+     role="region" aria-label="Aviso de cookies" hidden>
+  <div class="mx-auto flex max-w-[1400px] flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <p class="text-sm text-text">
+      Usamos cookies propias para que el carrito y tu sesión funcionen correctamente. No usamos cookies de seguimiento ni de terceros.
+    </p>
+    <button type="button" data-cookie-accept
+            class="w-full shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brandInk sm:w-auto">
+      Entendido
+    </button>
+  </div>
+</div>

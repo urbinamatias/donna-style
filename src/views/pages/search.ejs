@@ -12,7 +12,7 @@
     <label for="q" class="sr-only">Buscar productos</label>
     <input type="search" id="q" name="q" value="<%= term %>" maxlength="100" placeholder="Nombre del producto"
            class="w-64 rounded border border-border px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]">
-    <button type="submit" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Buscar</button>
+    <button type="submit" class="rounded bg-[var(--brand-gradient)] px-4 py-2 text-sm font-semibold text-text">Buscar</button>
   </form>
 
   <% if (products.length === 0) { %>
@@ -20,7 +20,7 @@
       <p class="mb-4 text-textMuted">
         <% if (term) { %>No encontramos nada para "<%= term %>".<% } else { %>Escribí el nombre de una prenda para buscarla.<% } %>
       </p>
-      <a href="/" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Volver al catálogo</a>
+      <a href="/" class="rounded bg-[var(--brand-gradient)] px-4 py-2 text-sm font-semibold text-text">Volver al catálogo</a>
     </div>
   <% } else { %>
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

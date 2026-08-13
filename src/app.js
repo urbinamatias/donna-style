@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express');
+const helmet = require('helmet');
 const compression = require('compression');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -78,6 +79,41 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 // `express.static`, los estáticos salen sin gzip. Antes de session/CSRF es
 // indistinto (solo envuelve res.write/end), así que se elige la posición
 // que no depende de nada.
+// prompt.md §8.1: "helmet con CSP sin unsafe-inline". No hace falta nonce:
+// no queda ningún <script> inline (todo es src=""/type="application/json")
+// ni ningún onXxx="" inline (reemplazados por confirm-submit.js) ni ningún
+// style="" inline (reemplazados por la clase bg-[var(--brand-gradient)]) —
+// ver git log de esta misma fase para el detalle de esos 3 cambios.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        // 'blob:' es imprescindible: image-upload.js (§7, "preview del
+        // recorte antes de guardar") carga el archivo elegido vía
+        // `URL.createObjectURL` en un <img> en memoria antes de dibujarlo en
+        // el <canvas> — sin este scheme el preview se rompe en silencio.
+        imgSrc: ["'self'", 'blob:'],
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"],
+      },
+    },
+    // Los headers de aislamiento cross-origin (COEP/CORP) que helmet activa
+    // por default no los pide prompt.md y arriesgan romper el caso de uso
+    // central de §5.6 (que WhatsApp/Facebook/Instagram puedan traer
+    // `og:image` para la vista previa del link compartido) — se desactivan
+    // a propósito en vez de heredar el preset estricto.
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+  })
+);
+
 // Nota de mantenimiento: si el hosting final trae un reverse proxy con
 // gzip/brotli, sacar esta línea para no comprimir dos veces.
 app.use(compression());

@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const { pool } = require('../../src/db/pool');
 const app = require('../../src/app');
 const siteSettingsModel = require('../../src/models/site-settings');
+const checkoutLimiter = require('../../src/middleware/checkout-rate-limit');
 
 let server;
 let baseUrl;
@@ -15,6 +16,13 @@ test.before(async () => {
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
+});
+
+test.beforeEach(() => {
+  // Mismo motivo que search.test.js: este archivo dispara varios POST
+  // /checkout (max 10/10min), así que sin limpiar el limiter una suite
+  // podría arrancar la siguiente ya bloqueada con 429.
+  checkoutLimiter._hits.clear();
 });
 
 test.after(async () => {
@@ -276,4 +284,39 @@ test('POST /checkout: el link wa.me sigue el valor del PANEL (site_settings), no
       await pool.query(`DELETE FROM site_settings WHERE key = 'whatsapp_admin'`);
     }
   }
+});
+
+// prompt.md §8.1: "Rate limiting en login, búsqueda y creación de pedidos".
+// Mismo patrón que search.test.js: request 11 en la ventana devuelve 429,
+// carrito y CSRF token se mantienen intactos (nunca crea pedido de más).
+test('POST /checkout: rate limit — request 11 en la ventana devuelve 429, luego se recupera', async () => {
+  const cookie = await newSession();
+  const csrfToken = await getCsrfToken(cookie);
+  const { rows } = await pool.query('SELECT id FROM variants WHERE stock > 0 LIMIT 1');
+
+  for (let i = 0; i < 10; i += 1) {
+    await addToCart(cookie, csrfToken, rows[0].id);
+    const res = await fetch(`${baseUrl}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+      body: `_csrf=${csrfToken}`,
+    });
+    assert.equal(res.status, 200, `intento ${i + 1} debería pasar`);
+  }
+
+  const blocked = await fetch(`${baseUrl}/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+    body: `_csrf=${csrfToken}`,
+  });
+  assert.equal(blocked.status, 429);
+
+  checkoutLimiter._hits.clear();
+  await addToCart(cookie, csrfToken, rows[0].id);
+  const recovered = await fetch(`${baseUrl}/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', cookie },
+    body: `_csrf=${csrfToken}`,
+  });
+  assert.equal(recovered.status, 200);
 });

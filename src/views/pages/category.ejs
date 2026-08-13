@@ -47,13 +47,13 @@
         <% }) %>
       </select>
     </div>
-    <button type="submit" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Aplicar</button>
+    <button type="submit" class="rounded bg-[var(--brand-gradient)] px-4 py-2 text-sm font-semibold text-text">Aplicar</button>
   </form>
 
   <% if (products.length === 0) { %>
     <div class="py-16 text-center">
       <p class="mb-4 text-textMuted">Todavía no hay productos acá.</p>
-      <a href="/" class="rounded px-4 py-2 text-sm font-semibold text-text" style="background: var(--brand-gradient);">Volver al catálogo</a>
+      <a href="/" class="rounded bg-[var(--brand-gradient)] px-4 py-2 text-sm font-semibold text-text">Volver al catálogo</a>
     </div>
   <% } else { %>
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

@@ -23,8 +23,10 @@
   /* Marca — solo en logo, botones de acción, bordes activos y barra de anuncios.
      Fase ui-brand-search-whatsapp (design.md D8): color plano `#F5AB56`,
      sin degradé. `--brand-gradient` queda como alias del color plano (nunca
-     un `linear-gradient` real) para que los 12 sitios que ya usan
-     `var(--brand-gradient)` en `style="background: ..."` no necesiten tocarse. */
+     un `linear-gradient` real) — el nombre de la variable no cambió para no
+     tocar los usos existentes. Los sitios que la consumen usan la clase
+     Tailwind `bg-[var(--brand-gradient)]`, nunca `style=""` inline (CSP
+     `style-src` sin `unsafe-inline`, ver `src/app.js`). */
   --brand:          #F5AB56;
   --brand-gradient: var(--brand);
   --brand-ink:      #6B3800;   /* 9,58:1 sobre blanco, 4,95:1 sobre --brand —

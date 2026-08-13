@@ -17,6 +17,7 @@ Convenciones del proyecto para mantener consistencia entre sesiones. La fuente d
 | Imágenes | `multer` (memoryStorage) + `sharp` (Fase 6b — **primer binario nativo real del proyecto**, ver nota abajo) |
 | Sesiones | `express-session` + `connect-pg-simple` (a partir de la fase que las necesite) |
 | Contraseñas admin | `bcryptjs` (puro JS, sin binario nativo — ver nota abajo) |
+| Headers de seguridad | `helmet` — CSP sin `unsafe-inline` ni `unsafe-eval` (§8.1 de `prompt.md`), ver `README.md` → "CSP de helmet" para las restricciones que impone en código de vista/cliente nuevo |
 
 **`bcryptjs` en vez de `bcrypt` nativo (Fase 6a):** mismo motivo que `sharp` obliga a correr `npm install` desde Windows — un binario nativo compilado en un entorno rompe en el otro. `bcryptjs` es una reimplementación en JS puro del mismo algoritmo, sin paso de compilación, así que no tiene ese problema. Costo de hash: 12+ rounds (§6.2 de `prompt.md`).
 
@@ -32,13 +33,17 @@ Convenciones del proyecto para mantener consistencia entre sesiones. La fuente d
 
 ## 3. Reglas de seguridad
 
-- **EJS: siempre `<%= %>` (escapa).** Nunca `<%- %>`, con dos excepciones permitidas en todo el proyecto:
+- **EJS: siempre `<%= %>` (escapa).** Nunca `<%- %>`, con tres excepciones permitidas en todo el proyecto:
   1. La descripción del producto, y solo después de pasarla por `sanitize-html` con whitelist restrictiva en el servidor.
-  2. JSON embebido en `<script type="application/json">` (ej. la tabla de disponibilidad de variantes, Fase 4). Ese elemento es "raw text" en HTML: el parser nunca decodifica entidades ahí adentro, así que `<%= %>` deja el JSON roto (`JSON.parse` falla en silencio, sin error de servidor — ver `src/services/format.js`). Va siempre con `toScriptJson()` de `src/services/format.js`, que en vez de escapar a entidades neutraliza a nivel de JSON las secuencias peligrosas para el tag (`<`, `>`, `&`), nunca con `JSON.stringify` a secas.
+  2. La descripción de las páginas institucionales (`prompt.md` §5.10), mismo criterio que el punto 1: siempre pasada por `sanitizeInline()` (`src/services/rich-text.js`) antes de imprimirse, nunca el HTML crudo de `pages.description_html`.
+  3. JSON embebido en `<script type="application/json">` (ej. la tabla de disponibilidad de variantes, Fase 4). Ese elemento es "raw text" en HTML: el parser nunca decodifica entidades ahí adentro, así que `<%= %>` deja el JSON roto (`JSON.parse` falla en silencio, sin error de servidor — ver `src/services/format.js`). Va siempre con `toScriptJson()` de `src/services/format.js`, que en vez de escapar a entidades neutraliza a nivel de JSON las secuencias peligrosas para el tag (`<`, `>`, `&`), nunca con `JSON.stringify` a secas.
 - **Prohibido `innerHTML`, `outerHTML`, `insertAdjacentHTML` y `document.write` con datos dinámicos** en cualquier JS de cliente. Usá `textContent`, `createElement`/`append`, o `<template>` + `cloneNode`.
+- **Prohibido `onclick=`/`onsubmit=`/cualquier atributo `onXxx=` inline en las vistas** — la CSP (`script-src` sin `unsafe-inline`) los bloquea en silencio. Para confirmaciones de acciones destructivas, usá `data-confirm="mensaje"` sobre el `<form>` + el listener delegado ya existente en `src/public/js/confirm-submit.js` (no crear uno nuevo por vista).
+- **Prohibido `style="..."` inline en las vistas** — mismo motivo (`style-src` sin `unsafe-inline`). Usá clases de Tailwind, incluidas las arbitrarias con variables CSS (`bg-[var(--brand-gradient)]`, ya usado en toda la tienda pública).
 - Queries parametrizadas siempre.
 - Tokens CSRF en todo formulario que muta estado (a partir de la fase que tenga formularios de escritura).
-- `helmet` con CSP sin `unsafe-inline` (a partir de la fase que sirva HTML con scripts).
+- `helmet` con CSP sin `unsafe-inline` ni `unsafe-eval` — implementado en `src/app.js`. Antes de agregar un `<script>`/`<style>` nuevo, revisar "CSP de helmet" en `README.md` → Gotchas.
+- Rate limiting en login, búsqueda y creación de pedidos — los tres implementados (`src/middleware/rate-limit.js`, `search-rate-limit.js`, `checkout-rate-limit.js`).
 - Secretos solo por variables de entorno. `.env.example` documenta las claves necesarias; `.env` nunca se commitea.
 
 ## 4. Commits

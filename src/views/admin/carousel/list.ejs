@@ -49,7 +49,7 @@
             </form>
 
             <form method="POST" action="/admin/carrusel/<%= slide.id %>/eliminar"
-                  onsubmit="return confirm('¿Borrar este slide? Esta acción no se puede deshacer.');">
+                  data-confirm="¿Borrar este slide? Esta acción no se puede deshacer.">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="rounded border border-error px-2 py-1 text-xs text-error">Borrar</button>
             </form>

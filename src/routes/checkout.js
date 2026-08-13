@@ -14,6 +14,7 @@ const cart = require('../services/cart');
 const ordersService = require('../services/orders');
 const { buildPrivateSeo } = require('../services/seo');
 const config = require('../config/env');
+const checkoutRateLimit = require('../middleware/checkout-rate-limit');
 
 const router = express.Router();
 
@@ -79,7 +80,7 @@ router.get('/checkout', async (req, res, next) => {
 // Bloquea el checkout ENTERO (sin crear orders/order_items) si la
 // revalidación ajustó o quitó CUALQUIER línea — no solo si el resultado
 // queda vacío (tasks.md 3.3, regla más estricta del spec sobre design.md D9).
-router.post('/checkout', async (req, res, next) => {
+router.post('/checkout', checkoutRateLimit, async (req, res, next) => {
   try {
     const lines = getLines(req);
     if (lines.length === 0) {

@@ -22,7 +22,7 @@
   for (var r = 0; r < REPEATS; r++) repeatedItems = repeatedItems.concat(items);
 %>
 <% if (items.length > 0) { %>
-  <div class="overflow-hidden py-2 text-sm font-medium uppercase tracking-wide text-text" style="background: var(--brand-gradient);">
+  <div class="overflow-hidden bg-[var(--brand-gradient)] py-2 text-sm font-medium uppercase tracking-wide text-text">
     <div class="marquee flex w-max">
       <div class="flex shrink-0 items-center">
         <% repeatedItems.forEach(function (item) { %>

@@ -45,6 +45,10 @@
     <% } %>
     <%- include(view, locals) %>
   </main>
+  <%# Reemplaza los onsubmit="return confirm(...)" inline (CSP sin
+      unsafe-inline los bloquea) — cargado siempre, no-opera si no hay
+      ningún form[data-confirm] en la página. %>
+  <script src="/js/confirm-submit.js" defer></script>
   <% if (typeof bodyScripts !== 'undefined') { %>
     <% bodyScripts.forEach(function (src) { %>
       <script src="<%= src %>" defer></script>

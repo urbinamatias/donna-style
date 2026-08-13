@@ -80,7 +80,7 @@
                   </form>
 
                   <form method="POST" action="/admin/productos/<%= product.id %>/imagenes/<%= img.id %>/eliminar"
-                        onsubmit="return confirm('¿Borrar esta imagen? Esta acción no se puede deshacer.');">
+                        data-confirm="¿Borrar esta imagen? Esta acción no se puede deshacer.">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <button type="submit" class="rounded border border-error px-2 py-1 text-xs text-error">
                       Borrar
@@ -287,7 +287,7 @@
 
   <% if (product && product.id) { %>
     <form id="delete-product-form" method="POST" action="/admin/productos/<%= product.id %>/eliminar"
-          onsubmit="return confirm('¿Borrar este producto? Esta acción no se puede deshacer.');">
+          data-confirm="¿Borrar este producto? Esta acción no se puede deshacer.">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     </form>
   <% } %>

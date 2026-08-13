@@ -24,7 +24,7 @@
         <div class="flex items-center gap-4 text-base">
           <a href="/admin/categorias/<%= category.id %>/editar" class="underline">Editar</a>
           <form method="POST" action="/admin/categorias/<%= category.id %>/eliminar"
-                onsubmit="return confirm('¿Borrar esta categoría?');">
+                data-confirm="¿Borrar esta categoría?">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" class="rounded-lg bg-error px-3 py-1.5 text-sm font-semibold text-white">Borrar</button>
           </form>

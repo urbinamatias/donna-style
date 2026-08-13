@@ -1102,6 +1102,116 @@ en verde por la dueña desde Windows junto con el resto de la suite
 Los 5 frentes de "Pulido" (páginas de error, performance, accesibilidad,
 lightbox, README de despliegue) están cerrados. Fase 7 completa.
 
+### Auditoría final vs. `prompt.md` + cierre de 3 gaps de seguridad + preparación de deploy ✅ cerrada
+
+Sin ciclo SDD propio (cambio chico repartido en varios frentes acotados,
+mismo criterio que otros ajustes puntuales de esta fase). Disparado por una
+auditoría completa del código contra el checklist de §11/§12/§8/§8.1 de
+`prompt.md`, hecha ANTES de declarar el proyecto terminado. Resultado: la
+gran mayoría de los ítems pasaban, pero aparecieron 3 gaps reales de
+seguridad — los 3 pedidos explícitamente por §8.1 y nunca implementados en
+ninguna fase anterior:
+
+1. **`helmet` con CSP, sin `unsafe-inline` ni `unsafe-eval`** — no estaba
+   instalado. Antes de activarlo hubo que sacar TODO lo que una CSP
+   estricta rompe en silencio:
+   - **5 `onsubmit="return confirm(...)"` inline** (borrar
+     producto/imagen/categoría/página/slide) → reemplazados por
+     `data-confirm="..."` + un único listener delegado nuevo
+     (`src/public/js/confirm-submit.js`), cargado siempre desde
+     `admin.ejs`.
+   - **15 `style="background: var(--brand-gradient);"` inline** (botones
+     principales de toda la tienda pública) → clase Tailwind
+     `bg-[var(--brand-gradient)]` (la variable ya existía, `--brand-gradient`
+     es alias del color plano desde la fase de color de marca).
+   - `img-src` necesitó `blob:` explícito además de `'self'` — sin eso, el
+     preview de recorte de `image-upload.js` (que carga el archivo elegido
+     vía `URL.createObjectURL` en un `<img>` en memoria antes de dibujarlo
+     en el `<canvas>`) se hubiera roto en silencio, mismo patrón de bug que
+     ya pasó dos veces antes en el proyecto (Tailwind purgando clases,
+     `qs` compactando arrays).
+   - `crossOriginEmbedderPolicy`/`crossOriginResourcePolicy` desactivados a
+     propósito (no los pide la spec, y arriesgaban romper que
+     WhatsApp/Facebook/Instagram puedan traer `og:image` para la vista
+     previa del link compartido, §5.6).
+2. **Rate limiting en `/checkout`** — login y `/buscar` ya lo tenían,
+   creación de pedidos no. Mismo `fixedWindowRateLimit` genérico ya
+   existente, instancia nueva (`src/middleware/checkout-rate-limit.js`,
+   10 req/10min por IP — más estricto que búsqueda porque cada request
+   exitosa crea una fila real en `orders`).
+3. **Banner de cookies dismissible, persistido en `localStorage`** (§5.1)
+   — no existía ningún rastro en el código. Partial nuevo
+   (`src/views/partials/cookie-banner.ejs`) + script nuevo
+   (`src/public/js/cookie-banner.js`): presente siempre en el DOM
+   (progressive enhancement, sin JS el botón no hace nada pero el sitio
+   sigue 100% usable), oculto con `hidden` hasta que el JS confirma que no
+   hubo consentimiento previo.
+
+**Un cuarto punto de la auditoría (§5.10, páginas institucionales) se
+descartó como gap real tras revisión**: el commit anterior
+(`5c71c33`, "panel de admin — páginas informativas") construyó CRUD +
+sanitización + principio de ausencia, exactamente lo que pide §5.10
+("Contenido editable desde el panel, sanitizado en el servidor"). Que la
+tabla `pages` esté vacía hasta que la dueña cargue contenido real no es un
+bug — es el mismo estado esperado que productos/imágenes/carrusel antes de
+la carga real.
+
+**Preparación de deploy, a pedido explícito de la dueña**: de todos los
+datos hoy en la base, solo el árbol de 19 categorías reales de §0.1 debe
+sobrevivir al pase a producción (además de la cuenta de admin, que ya se
+crea con `create-admin` considerando esas credenciales como las
+definitivas) — productos/imágenes/carrusel son datos de prueba. Como
+`db/seed.js` mezcla categorías con datos de prueba y hace `TRUNCATE`, se
+extrajo un script nuevo y separado: `db/seed-categories.js` (`npm run
+seed:categories`), que siembra ÚNICAMENTE el árbol de categorías, nunca
+borra nada, e idempotente (si una categoría ya existe por slug, la saltea
+en vez de fallar contra la `UNIQUE` constraint). `README.md` actualizado:
+el checklist de "Primer deploy" ahora incluye este paso entre `migrate` y
+`create-admin`.
+
+**Tests nuevos**: `test/routes/checkout.test.js` (rate limit 429 +
+recuperación, mismo patrón que `search.test.js`), `test/routes/
+security-headers.test.js` (CSP sin `unsafe-inline`/`unsafe-eval`, `img-src`
+con `blob:`). Ambos, como el resto de `test/routes/*.test.js`, bloqueados
+en WSL por el límite conocido de `sharp`/`adminRouter` — confirmar desde
+Windows tras `npm install` (agrega `helmet` como dependencia nueva).
+
+**Pendiente para el próximo arranque desde Windows**: `npm install`
+(instala `helmet`), `npm run build:css` (las clases `bg-[var(--brand-
+gradient)]` nuevas no están en `output.css` todavía), `npm test` completo.
+
+**Confirmado por la dueña desde Windows tras los 3 pasos de arriba: 585/585
+tests en verde.** Un único fallo en la primera corrida
+(`test/routes/pages-navigation.test.js`, "sin páginas nunca creadas...")
+no era una regresión de este ciclo: quedó una fila real (`"Envíos"`) en la
+tabla `pages` de una sesión manual de QA anterior al commit `5c71c33`, y el
+test solo limpia filas con prefijo `Test%` — mismo patrón de "estado de DB
+sin resembrar" ya documentado varias veces en este archivo (ver
+`admin-settings.test.js`/`whatsapp_admin`). Se borró la fila directo de la
+base de desarrollo, sin tocar código; segunda corrida completa en verde.
+
+`README.md` y `CLAUDE.md` actualizados con: checklist de `prompt.md` §8.1
+(estado de cada requisito de seguridad y dónde vive en el código), tabla
+"Qué SÍ y qué NO pasa a producción" (solo categorías + cuenta de admin
+sobreviven al primer deploy, todo lo demás — productos, imágenes,
+carrusel, páginas institucionales, pedidos, configuración — es dato de
+prueba y se carga de cero), y la sección "CSP de helmet" documentando las
+restricciones que la nueva CSP impone sobre código de vista/cliente futuro
+(nada de `onXxx=`/`style=` inline). `CLAUDE.md` §3 suma esas dos reglas
+como convención permanente del proyecto, más la tercera excepción real de
+`<%- %>` (páginas institucionales vía `sanitizeInline`) que nunca había
+quedado documentada.
+
+## Fase 7 — completa. Proyecto cierra la auditoría final contra `prompt.md`.
+
+Con los 3 gaps de seguridad cerrados, el script de categorías para
+producción, y 585/585 tests en verde, el proyecto cumple el checklist de
+`prompt.md` §11/§12/§8/§8.1 tal como quedó verificado en esta sesión. Los
+únicos puntos que siguen sin decidirse son operativos, no de código (ver
+README.md → "Qué falta decidir antes del primer deploy": proveedor de
+hosting, estrategia de backup real, ajuste de `trust proxy` si la
+infraestructura final encadena más de un proxy).
+
 ## Fases sin empezar
 
 ## Entorno / recordatorios operativos
