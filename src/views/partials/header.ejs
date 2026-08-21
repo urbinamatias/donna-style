@@ -21,7 +21,13 @@
   var repeatedItems = [];
   for (var r = 0; r < REPEATS; r++) repeatedItems = repeatedItems.concat(items);
 %>
-<% if (items.length > 0) { %>
+<%# Fase 8 (fase8-bugs-produccion, design.md D3): gateada acá, no en
+    middleware — `floatingUi` (que resuelve `hideFloatingUI`) monta en
+    src/app.js DESPUÉS del chrome que arma este partial, así que el flag
+    todavía no existe si se evaluara antes. `locals.hideFloatingUI` (con
+    el prefijo `locals.`) evita un ReferenceError cuando la variable no
+    fue pasada al render (mismo patrón que search-toggle.ejs/main.ejs). %>
+<% if (!locals.hideFloatingUI && items.length > 0) { %>
   <div class="overflow-hidden bg-[var(--brand-gradient)] py-2 text-sm font-medium uppercase tracking-wide text-text">
     <div class="marquee flex w-max">
       <div class="flex shrink-0 items-center">

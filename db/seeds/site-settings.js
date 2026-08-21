@@ -14,14 +14,6 @@ module.exports = {
 
   page_boton_de_arrepentimiento: `Tenés derecho a arrepentirte de tu compra dentro de los 10 días corridos desde que la recibiste, sin costo ni obligación de dar motivo (Ley 24.240, art. 34). Para ejercerlo, escribinos por WhatsApp al 351 750-5083 indicando tu número de pedido.`,
 
-  // Barra de anuncios (§5.1): editable/desactivable desde el panel (Fase 6).
-  // Varios mensajes separados por " • ", en loop horizontal continuo (ver
-  // partials/header.ejs). Guardado en capitalización normal — el mayúsculas
-  // se resuelve con CSS (uppercase), mismo criterio que §0.1 regla 4 para
-  // categorías. Si esta clave no existiera o quedara vacía, la barra no se
-  // renderiza (§4.5, principio de ausencia).
-  announcement_bar_text: `Envíos a todo el país • 6 cuotas sin interés • 30% off abonando con efectivo/transferencia bancaria`,
-
   // Fase 6d (design.md D-C): los 4 datos de contacto que resuelve
   // `store-config.js` — sembrados acá para poder probar el panel completo
   // (Configuración) sin depender de `.env`. Mismos valores reales del

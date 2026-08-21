@@ -14,6 +14,7 @@ const categoriesModel = require('./models/categories');
 const siteSettingsModel = require('./models/site-settings');
 const pagesModel = require('./models/pages');
 const { formatPrice, formatDate, toScriptJson } = require('./services/format');
+const { ANNOUNCEMENT_ITEMS } = require('./config/announcement');
 const { sanitizeInline } = require('./services/rich-text');
 const { computeTransferPrice, computeInstallmentValue } = require('./services/pricing');
 const { statusBadge, transitionButtonClass } = require('./services/orders-status');
@@ -56,6 +57,12 @@ app.locals.sanitizeInline = sanitizeInline;
 // expuesto en app.locals que formatPrice, usado desde product-card.ejs.
 app.locals.computeTransferPrice = computeTransferPrice;
 app.locals.computeInstallmentValue = computeInstallmentValue;
+// Fase 8 (fase8-bugs-produccion, design.md D1/D2): barra de promos
+// code-owned, ya no `site_settings.announcement_bar_text` (esa fila quedó
+// vacía en producción y ocultó la barra en silencio). `app.locals` se
+// mergea siempre en `res.render` — incluso el handler de 500 abajo sigue
+// viéndola sin necesitar la clave explícita en su objeto de locals.
+app.locals.announcementItems = ANNOUNCEMENT_ITEMS;
 // Fase 6c: badge de estado de pedido, misma fuente de verdad que la
 // máquina de transiciones (services/orders-status.js) — nunca reimplementado
 // en la vista.
@@ -173,21 +180,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Menú/anuncios del chrome (header/footer), comunes a TODA página, no solo
-// al catálogo: movido acá (antes vivía solo en public.js) porque cart.js
+// Menú del chrome (header/footer), común a TODA página, no solo al
+// catálogo: movido acá (antes vivía solo en public.js) porque cart.js
 // también renderiza layouts/main y necesita los mismos locals — una sola
 // carga por request, nunca duplicada entre routers.
-// Fase 6d (design.md D-C): `siteSettingsModel.getAll()` reemplaza el
-// `get('announcement_bar_text')` puntual — MISMO round trip a la DB
-// devuelve el anuncio Y los 4 datos de contacto del panel. `merge()` arma
-// `res.locals.storeConfig` con la WHITELIST explícita (nunca más el objeto
-// `config` completo, que filtraba SESSION_SECRET/DATABASE_URL a las
-// vistas). Sin caché a propósito: un cambio en el panel debe verse sin
-// reiniciar el proceso (spec "Panel value wins").
+// Fase 6d (design.md D-C): `siteSettingsModel.getAll()` resuelve los 4
+// datos de contacto del panel. `merge()` arma `res.locals.storeConfig` con
+// la WHITELIST explícita (nunca más el objeto `config` completo, que
+// filtraba SESSION_SECRET/DATABASE_URL a las vistas). Sin caché a
+// propósito: un cambio en el panel debe verse sin reiniciar el proceso
+// (spec "Panel value wins").
+// La barra de promos (`announcementItems`) NO se resuelve acá — es una
+// constante code-owned publicada en `app.locals` arriba (Fase 8, design.md
+// D1/D2), no un valor por-request.
 app.use(async (req, res, next) => {
   try {
     // Páginas informativas (spec site-navigation "Enabled pages appear in
-    // menu and footer"): TERCERA query paralela, misma fuente única para
+    // menu and footer"): SEGUNDA query paralela, misma fuente única para
     // nav-drawer.ejs (menú) y footer.ejs — nunca duplicada por vista.
     // `findActiveForMenu()` ya filtra por `is_active` y ordena por
     // `sort_order, id`, así que este local es directamente el orden final.
@@ -198,10 +207,6 @@ app.use(async (req, res, next) => {
     ]);
     res.locals.menuTree = menuTree;
     res.locals.pages = pages;
-    const announcementText = settings.announcement_bar_text;
-    res.locals.announcementItems = announcementText
-      ? announcementText.split('•').map((s) => s.trim()).filter(Boolean)
-      : [];
     res.locals.storeConfig = storeConfig.merge(config, settings);
     next();
   } catch (err) {
@@ -245,7 +250,6 @@ app.use((err, req, res, next) => {
     title: 'Ocurrió un error',
     menuTree: res.locals.menuTree || [],
     pages: res.locals.pages || [],
-    announcementItems: res.locals.announcementItems || [],
     storeConfig: res.locals.storeConfig || storeConfig.fromEnv(),
     csrfToken: res.locals.csrfToken || '',
     // Fase 7: una respuesta 500 nunca se indexa. Slot opcional ya existente

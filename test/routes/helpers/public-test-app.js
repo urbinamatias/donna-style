@@ -15,6 +15,7 @@ const publicRouter = require('../../../src/routes/public');
 const categoriesModel = require('../../../src/models/categories');
 const siteSettingsModel = require('../../../src/models/site-settings');
 const { formatPrice, formatDate, toScriptJson } = require('../../../src/services/format');
+const { ANNOUNCEMENT_ITEMS } = require('../../../src/config/announcement');
 const { computeTransferPrice, computeInstallmentValue } = require('../../../src/services/pricing');
 const { imageSrc, imageAttrs, slideImageAttrs } = require('../../../src/services/image-urls');
 const { ensureToken, csrfProtection } = require('../../../src/middleware/csrf');
@@ -37,6 +38,9 @@ function buildPublicTestApp() {
   app.locals.imageAttrs = imageAttrs;
   app.locals.slideImageAttrs = slideImageAttrs;
   app.locals.waDigits = storeConfig.waDigits;
+  // Fase 8 (fase8-bugs-produccion, design.md D1): mismo import code-owned
+  // que src/app.js, no un split de `site_settings.announcement_bar_text`.
+  app.locals.announcementItems = ANNOUNCEMENT_ITEMS;
 
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
@@ -65,10 +69,6 @@ function buildPublicTestApp() {
     try {
       const [menuTree, settings] = await Promise.all([categoriesModel.findMenuTree(), siteSettingsModel.getAll()]);
       res.locals.menuTree = menuTree;
-      const announcementText = settings.announcement_bar_text;
-      res.locals.announcementItems = announcementText
-        ? announcementText.split('•').map((s) => s.trim()).filter(Boolean)
-        : [];
       res.locals.storeConfig = storeConfig.merge(config, settings);
       next();
     } catch (err) {
