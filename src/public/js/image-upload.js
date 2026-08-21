@@ -5,7 +5,7 @@
 // datos dinámicos (CLAUDE.md §3): solo createElement + append + drawImage.
 //
 // Fase 8 (fase8-bugs-produccion, spec "Photo Accumulation on Product
-// Creation", design.md D4/D5): reabrir el picker nativo en el alta
+// Creation", design.md D5″/D8″): reabrir el picker nativo en el alta
 // reemplazaba la selección anterior — bug real de QA. `selected` pasa a
 // ser la lista autoritativa acumulada en memoria; en cada 'change' del
 // input SOLO llegan los archivos recién elegidos en ESE diálogo (así
@@ -13,7 +13,9 @@
 // vía DataTransfer más abajo), así que el merge con lo ya acumulado es
 // responsabilidad de este script, no del navegador. El submit real sigue
 // siendo un único POST (la transacción de "Guardar" no cambia) porque
-// `input.files` queda sincronizado con `selected` en todo momento.
+// `input.files` queda sincronizado con `selected` en todo momento. El
+// `<input type="file" multiple>` nativo es el único punto de entrada —
+// no hay ningún botón adicional que lo reabra por su cuenta.
 (function () {
   // Sin scoping a un wrapper `[data-image-upload-form]` a propósito: al
   // crear un producto (QA), el input de fotos vive suelto dentro de
@@ -22,10 +24,6 @@
   // casos por igual, nunca coexisten los dos a la vez en una misma página.
   const fileInput = document.querySelector('[data-image-upload-input]');
   const previews = document.querySelector('[data-image-upload-previews]');
-  // Solo existe en la sección de alta (form.ejs ~139-157) — en edición no
-  // hace falta: cada "Subir fotos" ya es su propia transacción inmediata,
-  // reabrir el picker ahí nunca perdió nada (spec "Edit form unchanged").
-  const addButton = document.querySelector('[data-image-upload-add]');
   const errorEl = document.querySelector('[data-image-upload-error]');
   if (!fileInput || !previews) return;
 
@@ -178,8 +176,4 @@
         : ''
     );
   });
-
-  if (addButton) {
-    addButton.addEventListener('click', () => fileInput.click());
-  }
 })();

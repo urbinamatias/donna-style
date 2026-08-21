@@ -1232,23 +1232,23 @@ resueltos en 3 commits atómicos e independientemente revertibles (SDD
    (no cuadrado — el recorte final es 3:4, así que el ancho es el eje que
    ata tras el crop). Peor caso de upscale documentado: 1400/720 = 1.94x
    en el derivado más grande. Perfil `carousel` sin cambios.
-3. **Fotos perdidas al reabrir el picker en "Nuevo producto"**: el input
+3. **Fotos perdidas al reabrir el selector en "Nuevo producto"**: el input
    nativo reemplazaba la selección anterior en vez de sumarla.
    `image-upload.js` acumula un `File[]` client-side, sincronizado con el
-   input real vía `DataTransfer` (dedupe + tope de 6 con mensaje visible),
-   y un botón "Agregar fotos" reabre el picker sin perder lo ya elegido.
-   El submit sigue siendo una única transacción de "Guardar"; el
-   formulario de edición y el endpoint de subida incremental no cambian.
+   input real vía `DataTransfer` (dedupe + tope de 6 con mensaje visible);
+   volver a tocar el mismo selector de archivos ahora suma a lo ya
+   elegido en vez de reemplazarlo, sin ningún botón adicional. El submit
+   sigue siendo una única transacción de "Guardar"; el formulario de
+   edición y el endpoint de subida incremental no cambian.
 
 QA manual pendiente para la dueña (checklist, sin harness Node/jsdom para
 JS de cliente en este proyecto): abrir "Nuevo producto", elegir 2 fotos,
-tocar "Agregar fotos" y elegir 3 más → deben quedar 5 en la lista de
-pendientes; tocar "Quitar" en una → quedan 4 y se suben esas con el resto
-al tocar "Guardar" en un solo request; intentar sumar una 7ª foto con 6 ya
-acumuladas → se rechaza client-side con mensaje visible, nunca rompe el
-submit; confirmar que el formulario de "Editar producto" sigue
-comportándose igual que antes (subida inmediata por foto, sin botón
-"Agregar fotos").
+volver a tocar el selector de archivos y elegir 3 más → deben quedar 5 en
+la lista de pendientes; tocar "Quitar" en una → quedan 4 y se suben esas
+con el resto al tocar "Guardar" en un solo request; intentar sumar una 7ª
+foto con 6 ya acumuladas → se rechaza client-side con mensaje visible,
+nunca rompe el submit; confirmar que el formulario de "Editar producto"
+sigue comportándose igual que antes (subida inmediata por foto).
 
 ## Fases sin empezar
 
