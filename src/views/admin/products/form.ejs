@@ -25,9 +25,12 @@
       del primer form interno, así que TODO lo que venía después (Categorías,
       Visibilidad, Variantes, el botón Guardar de abajo) terminaba fuera de
       cualquier form y dejaba de funcionar (bug real de QA, no hipotético).
-      Solo en edición: la creación siempre redirige a /editar primero (6a),
-      así que product_id siempre existe acá — nunca hay que soportar
-      upload en el alta. %>
+      Solo en edición: acá product_id siempre existe, así que cada "Subir
+      fotos" es su propia transacción inmediata contra el producto ya
+      creado. El alta SÍ soporta fotos (sección "Fotos" de abajo,
+      ~139-157) pero por un camino distinto — un único multipart POST
+      junto con el resto del formulario (design.md D4, fase8-bugs-
+      producción): nunca reusa este endpoint de subida incremental. %>
     <section class="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-4">
       <h2 class="text-lg font-semibold border-b border-border pb-2">Imágenes</h2>
 
@@ -148,6 +151,17 @@
           <input type="file" name="images" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                  capture="environment" multiple data-image-upload-input class="text-sm">
         </label>
+        <%# Fase 8 (fase8-bugs-produccion, design.md D5): reabre el picker
+          nativo SIN perder lo ya elegido — image-upload.js acumula en
+          `selected` y sincroniza `input.files` vía DataTransfer, así que
+          este botón nunca dispara un submit ni reemplaza la selección
+          anterior (a diferencia de volver a tocar el input nativo dos
+          veces, que sí la reemplazaba — bug real de QA). %>
+        <button type="button" data-image-upload-add
+                class="w-fit rounded-lg border-2 border-border px-3 py-1.5 text-sm font-medium">
+          Agregar fotos
+        </button>
+        <p data-image-upload-error aria-live="polite" class="text-sm font-medium text-error empty:hidden"></p>
         <label class="flex flex-col gap-1 text-sm">
           Texto alternativo (opcional — si lo dejás vacío se usa el nombre del producto)
           <input type="text" name="alt_text" data-image-upload-alt class="rounded border border-border px-2 py-1 text-sm">
