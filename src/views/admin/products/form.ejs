@@ -101,7 +101,7 @@
       <div class="flex flex-col gap-2">
         <p class="text-sm text-textMuted">
           Subí hasta 6 fotos por vez. Formatos aceptados: JPEG, PNG, WebP o HEIC. Tamaño máximo 12 MB por foto,
-          lado más corto de al menos 1000px.
+          al menos 720px de ancho y 960px de alto.
         </p>
         <form method="POST" action="/admin/productos/<%= product.id %>/imagenes" enctype="multipart/form-data"
               id="image-upload-form" data-image-upload-form>
@@ -141,7 +141,7 @@
         <h2 class="text-lg font-semibold border-b border-border pb-2">Fotos <span class="text-sm font-normal text-textMuted">(opcional al crear — sin fotos, el producto queda en borrador)</span></h2>
         <p class="text-sm text-textMuted">
           Elegí fotos de la galería o sacalas en el momento. Formatos aceptados: JPEG, PNG, WebP o HEIC. Tamaño
-          máximo 12 MB por foto, lado más corto de al menos 1000px. Se suben junto con el resto al tocar "Guardar".
+          máximo 12 MB por foto, al menos 720px de ancho y 960px de alto. Se suben junto con el resto al tocar "Guardar".
         </p>
         <label class="flex flex-col gap-1 text-sm">
           Fotos

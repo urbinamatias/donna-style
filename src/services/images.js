@@ -26,21 +26,28 @@ const QUALITY = 82;
 
 const DEFAULT_UPLOADS_ROOT = path.join(__dirname, '..', 'public', 'uploads');
 
-// `minWidth`/`minHeight` reemplazan el viejo short-side check: para el
-// perfil `product` (mismo valor en ambos ejes) son matemáticamente
-// equivalentes a `Math.min(width, height) < 1000` — min(w,h) < X  ⟺
-// NOT(w >= X AND h >= X) cuando X es el mismo umbral en los dos ejes — así
-// que el criterio de aceptación/rechazo no cambia un bit para `product`.
-// El perfil `carousel` solo exige un ancho mínimo razonable (1200px, un
-// diseño de Canva exportado normalmente ya lo supera de sobra) — sin
-// recorte no tiene sentido exigir una relación de aspecto ni un alto
-// mínimo específico, cualquier proporción es válida.
+// `minWidth`/`minHeight` — piso POR EJE, no un short-side check. Fase 8
+// (fase8-bugs-produccion, design.md D6): el piso de `product` bajó de
+// 1000x1000 a 720x960, no cuadrado a propósito. El recorte final es 3:4
+// (alto = ancho * 4/3, ver `aspectRatio` abajo), así que después de
+// centrar el crop el ANCHO es el eje que ata — una fuente 1000x1000
+// (cuadrada) recorta a 1000x1333 sin upscale, pero una fuente vertical
+// real de celular como 720x1280 tenía MÁS que sobra de alto y sin embargo
+// el viejo piso cuadrado la rechazaba igual por tener 720 < 1000 de
+// ancho. 720x960 es el piso real que un teléfono en vertical cumple sin
+// problema, con el peor caso de upscale documentado en `renderWidth` de
+// abajo (1400/720 = 1.94x en el derivado más grande). El perfil
+// `carousel` solo exige un ancho mínimo razonable (1200px, un diseño de
+// Canva exportado normalmente ya lo supera de sobra) — sin recorte no
+// tiene sentido exigir una relación de aspecto ni un alto mínimo
+// específico, cualquier proporción es válida. Este cambio NO toca
+// `carousel`.
 const PROFILES = {
   product: {
     aspectRatio: 4 / 3, // alto = ancho * 4/3 (recorte vertical 3:4)
     widths: [400, 800, 1400],
-    minWidth: 1000,
-    minHeight: 1000,
+    minWidth: 720,
+    minHeight: 960,
     suffix: '',
     dir: (ctx, outputDir) => outputDir || path.join(DEFAULT_UPLOADS_ROOT, String(ctx.productId)),
   },
@@ -54,7 +61,13 @@ const PROFILES = {
   },
 };
 
-// Back-compat: seguía exportado y usado por callers/tests de Fase 6b.
+// Back-compat: seguía exportado y usado por callers/tests de Fase 6b. Es un
+// alias de `PROFILES.product.minWidth`, NUNCA renombrado (design.md D7,
+// verificado: el identificador solo aparece acá, en un comentario de test
+// y en ningún otro caller). Antes de Fase 8 los dos ejes eran iguales
+// (1000x1000), así que "short side" describía el criterio real; ahora que
+// `product` es 720x960 (no cuadrado) el nombre queda histórico — sigue
+// siendo el mínimo de ANCHO, ya no un mínimo del "lado corto" genérico.
 const MIN_SHORT_SIDE = PROFILES.product.minWidth;
 const WIDTHS = PROFILES.product.widths;
 
@@ -101,11 +114,15 @@ async function assertUsable(buffer, profileName = 'product') {
   const width = metadata.width || 0;
   const height = metadata.height || 0;
   if (width < profile.minWidth || height < profile.minHeight) {
+    // Fase 8 (design.md, Interfaces / Contracts): mensaje axis-explicit
+    // para `product` (720x960, ejes distintos) — nombrar ambos ejes por
+    // separado es más claro que "720x960px" ahora que ya no son
+    // intercambiables como en el viejo piso cuadrado.
     throw fail(
       'TOO_SMALL',
       profile.aspectRatio === null
         ? `La imagen es muy chica: necesitamos al menos ${profile.minWidth}px de ancho (esta mide ${width}x${height}).`
-        : `La imagen es muy chica: necesitamos al menos ${profile.minWidth}x${profile.minHeight}px (esta mide ${width}x${height}).`
+        : `La imagen es muy chica: necesitamos al menos ${profile.minWidth}px de ancho y ${profile.minHeight}px de alto (esta mide ${width}x${height}).`
     );
   }
 

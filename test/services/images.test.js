@@ -36,17 +36,64 @@ async function makeFixtureBuffer({ width, height, channels = 3 }) {
     .toBuffer();
 }
 
-test('assertUsable: imagen 1200x1600 (short side 1200 >= 1000) es usable', async () => {
+test('assertUsable: imagen 1200x1600 (por encima del piso 720x960) es usable', async () => {
   const buffer = await makeFixtureBuffer({ width: 1200, height: 1600 });
   await assert.doesNotReject(() => images.assertUsable(buffer));
 });
 
-test('assertUsable: short side 900 < 1000 lanza TOO_SMALL con mensaje es-AR', async () => {
-  const buffer = await makeFixtureBuffer({ width: 900, height: 1600 });
+// Fase 8 (fase8-bugs-produccion, spec "Minimum Source Dimensions for
+// `product` Profile"): el piso pasó de 1000x1000 (rechazaba fotos de
+// celular reales, ej. 720x1280) a 720x960 — no cuadrado, porque el recorte
+// a 3:4 hace del ANCHO el eje que ata (design.md D6).
+
+test('assertUsable: 720x960 (justo en el piso, ambos ejes) es usable', async () => {
+  const buffer = await makeFixtureBuffer({ width: 720, height: 960 });
+  await assert.doesNotReject(() => images.assertUsable(buffer));
+});
+
+test('assertUsable: 720x1280 (foto real de celular reportada en QA) es usable', async () => {
+  const buffer = await makeFixtureBuffer({ width: 720, height: 1280 });
+  await assert.doesNotReject(() => images.assertUsable(buffer));
+});
+
+test('assertUsable: 1440x1440 (cuadrada, por encima del piso) es usable', async () => {
+  const buffer = await makeFixtureBuffer({ width: 1440, height: 1440 });
+  await assert.doesNotReject(() => images.assertUsable(buffer));
+});
+
+test('assertUsable: 719x960 (1px bajo el ancho mínimo) lanza TOO_SMALL nombrando los 2 ejes', async () => {
+  const buffer = await makeFixtureBuffer({ width: 719, height: 960 });
   await assert.rejects(
     () => images.assertUsable(buffer),
-    (err) => err.code === 'TOO_SMALL' && /1000/.test(err.message)
+    (err) => err.code === 'TOO_SMALL' && /720/.test(err.message) && /960/.test(err.message)
   );
+});
+
+test('assertUsable: 720x959 (1px bajo el alto mínimo) lanza TOO_SMALL nombrando los 2 ejes', async () => {
+  const buffer = await makeFixtureBuffer({ width: 720, height: 959 });
+  await assert.rejects(
+    () => images.assertUsable(buffer),
+    (err) => err.code === 'TOO_SMALL' && /720/.test(err.message) && /960/.test(err.message)
+  );
+});
+
+test('assertUsable: 640x960 (bajo el piso en ancho) lanza TOO_SMALL con el mínimo 720x960', async () => {
+  const buffer = await makeFixtureBuffer({ width: 640, height: 960 });
+  await assert.rejects(
+    () => images.assertUsable(buffer),
+    (err) => err.code === 'TOO_SMALL' && /720/.test(err.message) && /960/.test(err.message)
+  );
+});
+
+test('MIN_SHORT_SIDE sigue exportado como alias documentado de PROFILES.product.minWidth', () => {
+  assert.equal(images.MIN_SHORT_SIDE, images.PROFILES.product.minWidth);
+  assert.equal(images.PROFILES.product.minWidth, 720);
+  assert.equal(images.PROFILES.product.minHeight, 960);
+});
+
+test('PROFILES.carousel no cambia (1200 de ancho, 200 de alto) — el fix de product no lo toca', () => {
+  assert.equal(images.PROFILES.carousel.minWidth, 1200);
+  assert.equal(images.PROFILES.carousel.minHeight, 200);
 });
 
 test('assertUsable: buffer que no es una imagen lanza BAD_IMAGE', async () => {
@@ -80,13 +127,14 @@ test('processImage: produce 3 derivados WebP con relación 3:4 y sin EXIF', asyn
   }
 });
 
-test('processImage: short side exactamente 1000 sigue produciendo el derivado 1400w (permite upscale, reconciliación #1)', async (t) => {
+test('processImage: ancho exactamente en el piso (720) sigue produciendo el derivado 1400w (permite upscale 1.94x)', async (t) => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'donna-img-'));
   t.after(() => fs.rm(tmpDir, { recursive: true, force: true }));
 
-  // short side = 1000 (ancho), alto = 1333 aprox (3:4) -> el derivado 1400w
-  // necesita agrandar el ancho de 1000 a 1400 (upscale).
-  const buffer = await makeFixtureBuffer({ width: 1000, height: 1333 });
+  // ancho = 720 (piso), alto = 960 (piso, 3:4) -> el derivado 1400w
+  // necesita agrandar el ancho de 720 a 1400 (upscale 1400/720 = 1.94x,
+  // el peor caso documentado en design.md/images.js).
+  const buffer = await makeFixtureBuffer({ width: 720, height: 960 });
   const baseKey = images.generateBaseKey();
 
   const result = await images.processImage(buffer, { productId: 1, baseKey, outputDir: tmpDir });
@@ -133,11 +181,11 @@ test('assertUsable: perfil carousel rechaza ancho por debajo de 1200 con mensaje
   );
 });
 
-test('assertUsable: sin profile explícito, sigue aplicando el perfil product (default) — 900x1600 TOO_SMALL con "1000" en el mensaje', async () => {
-  const buffer = await makeFixtureBuffer({ width: 900, height: 1600 });
+test('assertUsable: sin profile explícito, sigue aplicando el perfil product (default) — 700x900 TOO_SMALL con "720" en el mensaje', async () => {
+  const buffer = await makeFixtureBuffer({ width: 700, height: 900 });
   await assert.rejects(
     () => images.assertUsable(buffer),
-    (err) => err.code === 'TOO_SMALL' && /1000/.test(err.message)
+    (err) => err.code === 'TOO_SMALL' && /720/.test(err.message)
   );
 });
 
