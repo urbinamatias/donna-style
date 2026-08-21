@@ -1212,6 +1212,44 @@ README.md → "Qué falta decidir antes del primer deploy": proveedor de
 hosting, estrategia de backup real, ajuste de `trust proxy` si la
 infraestructura final encadena más de un proxy).
 
+## Fase 8 — Bugfix de producción: 3 fixes en un solo PR ✅ cerrada
+
+Tres bugs reales reportados por la dueña con el sitio ya en producción,
+resueltos en 3 commits atómicos e independientemente revertibles (SDD
+`fase8-bugs-produccion`, 599/599 tests en verde):
+
+1. **Barra de promos vacía en producción**: `site_settings.
+   announcement_bar_text` resolvía vacío en prod y la barra desaparecía en
+   silencio. Pasa a ser una constante de código
+   (`src/config/announcement.js`, `ANNOUNCEMENT_ITEMS`) publicada vía
+   `app.locals`, gateada en `header.ejs` por `hideFloatingUI` (carrito/
+   checkout/pedido/admin la siguen ocultando, buscador la sigue
+   mostrando). Se borró la clave `announcement_bar_text` del seed — no
+   queda ninguna lectura que dependa de ella.
+2. **Piso de imágenes de producto demasiado alto**: 1000x1000 (cuadrado)
+   rechazaba fotos reales de celular en vertical (ej. 720x1280) que
+   sobraban de alto pero no llegaban al ancho exigido. Bajó a 720x960
+   (no cuadrado — el recorte final es 3:4, así que el ancho es el eje que
+   ata tras el crop). Peor caso de upscale documentado: 1400/720 = 1.94x
+   en el derivado más grande. Perfil `carousel` sin cambios.
+3. **Fotos perdidas al reabrir el picker en "Nuevo producto"**: el input
+   nativo reemplazaba la selección anterior en vez de sumarla.
+   `image-upload.js` acumula un `File[]` client-side, sincronizado con el
+   input real vía `DataTransfer` (dedupe + tope de 6 con mensaje visible),
+   y un botón "Agregar fotos" reabre el picker sin perder lo ya elegido.
+   El submit sigue siendo una única transacción de "Guardar"; el
+   formulario de edición y el endpoint de subida incremental no cambian.
+
+QA manual pendiente para la dueña (checklist, sin harness Node/jsdom para
+JS de cliente en este proyecto): abrir "Nuevo producto", elegir 2 fotos,
+tocar "Agregar fotos" y elegir 3 más → deben quedar 5 en la lista de
+pendientes; tocar "Quitar" en una → quedan 4 y se suben esas con el resto
+al tocar "Guardar" en un solo request; intentar sumar una 7ª foto con 6 ya
+acumuladas → se rechaza client-side con mensaje visible, nunca rompe el
+submit; confirmar que el formulario de "Editar producto" sigue
+comportándose igual que antes (subida inmediata por foto, sin botón
+"Agregar fotos").
+
 ## Fases sin empezar
 
 ## Entorno / recordatorios operativos
