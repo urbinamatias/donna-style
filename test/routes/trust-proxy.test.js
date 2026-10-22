@@ -1,10 +1,15 @@
 // Test de integración del fix `trust proxy` (Fase 7, design.md D1-D4, spec
 // "Session cookie survives a TLS-terminating proxy"). Se fuerza
-// NODE_ENV=production y SESSION_SECRET ANTES de cualquier require de
+// NODE_ENV=production, SESSION_SECRET y los 4 datos de contacto (obligatorios
+// en producción, ver src/config/env.js) ANTES de cualquier require de
 // src/app — node --test corre cada archivo en su propio proceso, así que
 // este override queda aislado y no contamina otros archivos de test.
 process.env.NODE_ENV = 'production';
 process.env.SESSION_SECRET = 'test-' + '0'.repeat(32);
+process.env.WHATSAPP_ADMIN ||= '5493510000000';
+process.env.INSTAGRAM ||= '@tienda_ejemplo';
+process.env.EMAIL_CONTACTO ||= 'contacto@example.com';
+process.env.CUIT ||= '27-00000000-6';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

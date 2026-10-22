@@ -15,8 +15,8 @@ const {
 } = require('../../src/services/store-config-validation');
 
 test('normalizeWhatsapp: acepta 10-15 dígitos y quita +/espacios/guiones', () => {
-  const result = normalizeWhatsapp('+54 9 351-750-5083');
-  assert.equal(result.value, '5493517505083');
+  const result = normalizeWhatsapp('+54 9 351-000-0000');
+  assert.equal(result.value, '5493510000000');
   assert.equal(result.error, undefined);
 });
 
@@ -36,13 +36,13 @@ test('normalizeWhatsapp: más de 15 dígitos es error', () => {
 });
 
 test('normalizeInstagram: URL se normaliza a @handle', () => {
-  const result = normalizeInstagram('https://instagram.com/donna_styleok');
-  assert.equal(result.value, '@donna_styleok');
+  const result = normalizeInstagram('https://instagram.com/tienda_ejemplo');
+  assert.equal(result.value, '@tienda_ejemplo');
 });
 
 test('normalizeInstagram: handle sin @ se normaliza agregándolo', () => {
-  const result = normalizeInstagram('donna_styleok');
-  assert.equal(result.value, '@donna_styleok');
+  const result = normalizeInstagram('tienda_ejemplo');
+  assert.equal(result.value, '@tienda_ejemplo');
 });
 
 test('normalizeInstagram: vacío es válido (campo opcional), valor queda string vacío', () => {
@@ -52,8 +52,8 @@ test('normalizeInstagram: vacío es válido (campo opcional), valor queda string
 });
 
 test('normalizeEmail: formato básico válido, trim aplicado', () => {
-  const result = normalizeEmail('  yesi2682@hotmail.com  ');
-  assert.equal(result.value, 'yesi2682@hotmail.com');
+  const result = normalizeEmail('  contacto@example.com  ');
+  assert.equal(result.value, 'contacto@example.com');
   assert.equal(result.error, undefined);
 });
 
@@ -74,26 +74,26 @@ test('normalizeEmail: más de 254 caracteres es error', () => {
   assert.ok(result.error);
 });
 
-test('cuitCheckDigit: calcula el dígito verificador mod-11 correctamente para un CUIT real', () => {
-  // 27-29456245-7 (CUIT real del cliente, §0) — dígito verificador real: 7.
-  assert.equal(cuitCheckDigit('2729456245'), 7);
+test('cuitCheckDigit: calcula el dígito verificador mod-11 correctamente', () => {
+  // 27-00000000-6 (CUIT ficticio de ejemplo) — dígito verificador: 6.
+  assert.equal(cuitCheckDigit('2700000000'), 6);
 });
 
 test('normalizeCuit: acepta formato NN-NNNNNNNN-N y lo mantiene formateado', () => {
-  const result = normalizeCuit('27-29456245-7');
-  assert.equal(result.value, '27-29456245-7');
+  const result = normalizeCuit('27-00000000-6');
+  assert.equal(result.value, '27-00000000-6');
   assert.equal(result.error, undefined);
   assert.equal(result.warning, undefined);
 });
 
 test('normalizeCuit: acepta 11 dígitos sin guiones y los formatea', () => {
-  const result = normalizeCuit('27294562457');
-  assert.equal(result.value, '27-29456245-7');
+  const result = normalizeCuit('27000000006');
+  assert.equal(result.value, '27-00000000-6');
 });
 
 test('normalizeCuit: dígito verificador que NO cierra el mod-11 se GUARDA igual, con warning (nunca bloquea, decisión de negocio cerrada)', () => {
-  const result = normalizeCuit('27-29456245-9');
-  assert.equal(result.value, '27-29456245-9');
+  const result = normalizeCuit('27-00000000-9');
+  assert.equal(result.value, '27-00000000-9');
   assert.equal(result.error, undefined);
   assert.ok(result.warning, 'debe traer un warning no bloqueante');
 });
@@ -136,15 +136,15 @@ test('normalizeLinkUrl: rechaza cualquier otro esquema no contemplado (ej. data:
 
 test('validateSettings: caso feliz, todos los campos válidos', () => {
   const { values, errors, warnings } = validateSettings({
-    whatsapp_admin: '5493517505083',
-    instagram: '@donna_styleok',
-    email_contacto: 'yesi2682@hotmail.com',
-    cuit: '27-29456245-7',
+    whatsapp_admin: '5493510000000',
+    instagram: '@tienda_ejemplo',
+    email_contacto: 'contacto@example.com',
+    cuit: '27-00000000-6',
   });
   assert.deepEqual(errors, {});
   assert.deepEqual(warnings, {});
-  assert.equal(values.whatsapp_admin, '5493517505083');
-  assert.equal(values.cuit, '27-29456245-7');
+  assert.equal(values.whatsapp_admin, '5493510000000');
+  assert.equal(values.cuit, '27-00000000-6');
 });
 
 test('validateSettings: whatsapp_admin vacío rechaza con error de campo, no bloquea instagram/email válidos', () => {
@@ -152,17 +152,17 @@ test('validateSettings: whatsapp_admin vacío rechaza con error de campo, no blo
     whatsapp_admin: '',
     instagram: '',
     email_contacto: '',
-    cuit: '27-29456245-7',
+    cuit: '27-00000000-6',
   });
   assert.ok(errors.whatsapp_admin);
 });
 
 test('validateSettings: CUIT con check digit inválido no aparece en errors, solo en warnings', () => {
   const { errors, warnings } = validateSettings({
-    whatsapp_admin: '5493517505083',
+    whatsapp_admin: '5493510000000',
     instagram: '',
     email_contacto: '',
-    cuit: '27-29456245-9',
+    cuit: '27-00000000-9',
   });
   assert.equal(errors.cuit, undefined);
   assert.ok(warnings.cuit);

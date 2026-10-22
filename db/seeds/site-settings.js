@@ -1,5 +1,5 @@
-// Textos institucionales en borrador (voseo rioplatense, datos reales del
-// cliente — §0), para que la dueña edite en vez de escribir desde cero
+// Textos institucionales en borrador (voseo rioplatense, datos de contacto
+// ficticios), para que la dueña edite en vez de escribir desde cero
 // (§10 item 2). Contenido editable desde /admin en la Fase 6.
 module.exports = {
   page_envios_y_retiros: `Hacemos envíos a todo el país. Coordinamos el medio de envío y el costo por WhatsApp una vez confirmado tu pedido. Como todavía no tenemos local físico, no hay retiro en punto de venta por ahora.`,
@@ -8,18 +8,18 @@ module.exports = {
 
   page_medios_de_pago: `Por ahora coordinamos el medio de pago directamente por WhatsApp al confirmar tu pedido (transferencia, efectivo u otros medios a acordar). Todavía no procesamos pagos online desde la web.`,
 
-  page_contacto: `Escribinos por WhatsApp al 351 750-5083 o seguinos en Instagram @donna_styleok. También podés escribirnos a yesi2682@hotmail.com. Donna Style — Córdoba Capital.`,
+  page_contacto: `Escribinos por WhatsApp al 351 000-0000 o seguinos en Instagram @tienda_ejemplo. También podés escribirnos a contacto@example.com. Donna Style — Córdoba Capital.`,
 
-  page_terminos_y_condiciones: `Donna Style — CUIT 27-29456245-7. Al realizar un pedido a través de este sitio, aceptás que la compra se confirma y coordina por WhatsApp, sin procesamiento de pagos en la web. Los precios están expresados en pesos argentinos y pueden actualizarse sin previo aviso. Para más información, consultá al organismo de Defensa del Consumidor de tu jurisdicción.`,
+  page_terminos_y_condiciones: `Donna Style — CUIT 27-00000000-6. Al realizar un pedido a través de este sitio, aceptás que la compra se confirma y coordina por WhatsApp, sin procesamiento de pagos en la web. Los precios están expresados en pesos argentinos y pueden actualizarse sin previo aviso. Para más información, consultá al organismo de Defensa del Consumidor de tu jurisdicción.`,
 
-  page_boton_de_arrepentimiento: `Tenés derecho a arrepentirte de tu compra dentro de los 10 días corridos desde que la recibiste, sin costo ni obligación de dar motivo (Ley 24.240, art. 34). Para ejercerlo, escribinos por WhatsApp al 351 750-5083 indicando tu número de pedido.`,
+  page_boton_de_arrepentimiento: `Tenés derecho a arrepentirte de tu compra dentro de los 10 días corridos desde que la recibiste, sin costo ni obligación de dar motivo (Ley 24.240, art. 34). Para ejercerlo, escribinos por WhatsApp al 351 000-0000 indicando tu número de pedido.`,
 
   // Fase 6d (design.md D-C): los 4 datos de contacto que resuelve
   // `store-config.js` — sembrados acá para poder probar el panel completo
-  // (Configuración) sin depender de `.env`. Mismos valores reales del
-  // cliente que ya viven como default en `config/env.js` (§0 de prompt.md).
-  whatsapp_admin: '5493517505083',
-  instagram: '@donna_styleok',
-  email_contacto: 'yesi2682@hotmail.com',
-  cuit: '27-29456245-7',
+  // (Configuración) sin depender de `.env`. Mismos valores ficticios de
+  // desarrollo que viven como default en `config/env.js`.
+  whatsapp_admin: '5493510000000',
+  instagram: '@tienda_ejemplo',
+  email_contacto: 'contacto@example.com',
+  cuit: '27-00000000-6',
 };

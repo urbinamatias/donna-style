@@ -8,15 +8,15 @@
 
 ```
 NOMBRE_TIENDA:        Donna Style
-WHATSAPP_ADMIN:       5493517505083
-INSTAGRAM:            @donna_styleok
-EMAIL_CONTACTO:       yesi2682@hotmail.com
+WHATSAPP_ADMIN:       5493510000000
+INSTAGRAM:            @tienda_ejemplo
+EMAIL_CONTACTO:       contacto@example.com
 DIRECCIONES:          (no tiene local físico)
-CUIT:                 27-29456245-7
+CUIT:                 27-00000000-6
 ZONA_DE_ENVIO:        Todo el país
 ```
 
-Todos estos valores van en variables de entorno con estos nombres, nunca hardcodeados en las vistas. Sumá también:
+Los valores de contacto de arriba son ficticios: los reales del cliente viven solo en el `.env` del servidor. Todos estos valores van en variables de entorno con estos nombres, nunca hardcodeados en las vistas. Sumá también:
 
 ```
 SITE_URL              # base para construir el link del pedido en el mensaje de WhatsApp.

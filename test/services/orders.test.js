@@ -159,6 +159,6 @@ test('buildShortMessage: encabezado + total + link, sin items ni bloques', () =>
 
 test('buildWaLink: codifica el mensaje (saltos de línea, acentos) sobre el número de config', () => {
   const message = '¡Hola! Pedido\ncon salto de línea y acentós';
-  const link = buildWaLink('5493517505083', message);
-  assert.equal(link, `https://wa.me/5493517505083?text=${encodeURIComponent(message)}`);
+  const link = buildWaLink('5493510000000', message);
+  assert.equal(link, `https://wa.me/5493510000000?text=${encodeURIComponent(message)}`);
 });

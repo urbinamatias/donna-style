@@ -35,7 +35,7 @@ test.before(async () => {
   // wa.me) fallaba si otro test/corrida previa había vaciado site_settings
   // sin resembrar — test.after ya limpia estas 4 claves al final, así que
   // sembrarlas acá es seguro y deja el archivo autocontenido.
-  await siteSettingsModel.set('whatsapp_admin', '5493517505083');
+  await siteSettingsModel.set('whatsapp_admin', '5493510000000');
 });
 
 test.after(async () => {
@@ -101,7 +101,7 @@ test('POST /admin/configuracion: guarda los 4 valores válidos vía setMany, el 
       whatsapp_admin: '+54 9 351 111-2222',
       instagram: 'donna_test',
       email_contacto: 'test@donnastyle.com',
-      cuit: '27-29456245-7',
+      cuit: '27-00000000-6',
     }).toString(),
   });
   assert.ok([302, 303].includes(res.status));
@@ -110,7 +110,7 @@ test('POST /admin/configuracion: guarda los 4 valores válidos vía setMany, el 
   assert.equal(saved.whatsapp_admin, '5493511112222');
   assert.equal(saved.instagram, '@donna_test');
   assert.equal(saved.email_contacto, 'test@donnastyle.com');
-  assert.equal(saved.cuit, '27-29456245-7');
+  assert.equal(saved.cuit, '27-00000000-6');
 });
 
 test('POST /admin/configuracion: whatsapp_admin vacío se rechaza y NO pisa el valor anterior', async () => {
@@ -125,7 +125,7 @@ test('POST /admin/configuracion: whatsapp_admin vacío se rechaza y NO pisa el v
       whatsapp_admin: '',
       instagram: '',
       email_contacto: '',
-      cuit: '27-29456245-7',
+      cuit: '27-00000000-6',
     }).toString(),
   });
   assert.equal(res.status, 400);
@@ -163,13 +163,13 @@ test('POST /admin/configuracion: CUIT con dígito verificador que no cierra mod-
       whatsapp_admin: '5493511112222',
       instagram: '',
       email_contacto: '',
-      cuit: '27-29456245-9',
+      cuit: '27-00000000-9',
     }).toString(),
   });
   assert.ok([302, 303].includes(res.status), 'un CUIT con check digit inválido nunca bloquea el guardado');
 
   const saved = await siteSettingsModel.getAll();
-  assert.equal(saved.cuit, '27-29456245-9');
+  assert.equal(saved.cuit, '27-00000000-9');
 });
 
 test('POST /admin/configuracion: CUIT con cantidad de dígitos incorrecta SÍ bloquea (error de formato, no de check digit)', async () => {
@@ -199,7 +199,7 @@ test('POST /admin/configuracion: instagram y email vacíos son válidos (campos 
       whatsapp_admin: '5493511112222',
       instagram: '',
       email_contacto: '',
-      cuit: '27-29456245-7',
+      cuit: '27-00000000-6',
     }).toString(),
   });
   assert.ok([302, 303].includes(res.status));
@@ -220,7 +220,7 @@ test('POST /admin/configuracion sin CSRF token es 403 y no guarda nada', async (
       whatsapp_admin: '5493511112222',
       instagram: '',
       email_contacto: '',
-      cuit: '27-29456245-7',
+      cuit: '27-00000000-6',
     }).toString(),
   });
   assert.equal(res.status, 403);

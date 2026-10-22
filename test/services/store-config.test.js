@@ -11,10 +11,10 @@ const { merge, KEYS } = require('../../src/services/store-config');
 const baseConfig = {
   NOMBRE_TIENDA: 'Donna Style',
   SITE_URL: 'http://localhost:3000',
-  WHATSAPP_ADMIN: '5493517505083',
-  INSTAGRAM: '@donna_styleok',
-  EMAIL_CONTACTO: 'yesi2682@hotmail.com',
-  CUIT: '27-29456245-7',
+  WHATSAPP_ADMIN: '5493510000000',
+  INSTAGRAM: '@tienda_ejemplo',
+  EMAIL_CONTACTO: 'contacto@example.com',
+  CUIT: '27-00000000-6',
   SESSION_SECRET: 'super-secreto-no-debe-salir-nunca',
   DATABASE_URL: 'postgresql://user:pass@host/db',
 };
@@ -56,8 +56,8 @@ test('merge: fila vacía/blanca en site_settings GANA (panel siempre gana si hay
 
 test('merge: sin site_settings en absoluto, usa el fallback de config/.env', () => {
   const result = merge(baseConfig, {});
-  assert.equal(result.INSTAGRAM, '@donna_styleok');
-  assert.equal(result.CUIT, '27-29456245-7');
+  assert.equal(result.INSTAGRAM, '@tienda_ejemplo');
+  assert.equal(result.CUIT, '27-00000000-6');
 });
 
 test('merge: NUNCA devuelve null/undefined en ninguna de las 4 claves, incluso sin config ni settings', () => {

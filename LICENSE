@@ -1,0 +1,13 @@
+Copyright (c) 2026 Matías Urbina. All rights reserved.
+
+This source code is published solely for reference, as part of the author's
+professional portfolio. No license is granted: you may not use, copy, modify,
+merge, publish, distribute, sublicense, or sell any part of it without the
+author's prior written permission.
+
+The name, logo, and brand "Donna Style" belong to the client and are not
+covered by this notice.
+
+Third-party assets keep their own licenses. The Merriweather font files in
+src/public/fonts/ are licensed under the SIL Open Font License 1.1 (see
+src/public/fonts/OFL-Merriweather.txt).

@@ -41,19 +41,29 @@ if (!sessionSecret) {
   );
 }
 
-// Datos del cliente (§0 de prompt.md): nunca hardcodeados en las vistas.
-// Los defaults acá abajo son los valores reales del cliente documentados en
-// prompt.md, para que el sitio no quede roto si todavía no se agregaron a
-// `.env` — pero la fuente de verdad sigue siendo la variable de entorno.
+// Datos del cliente (§0 de prompt.md): nunca hardcodeados en las vistas ni
+// en el repo. Los datos reales viven solo en el `.env` del servidor (y en
+// `site_settings` si la dueña los editó desde el panel). En producción las 4
+// variables son obligatorias — mismo criterio que SESSION_SECRET: mejor no
+// arrancar que mostrar en la web los valores ficticios de desarrollo de abajo.
+const contactVars = { WHATSAPP_ADMIN, INSTAGRAM, EMAIL_CONTACTO, CUIT };
+if (nodeEnv === 'production') {
+  const missing = Object.keys(contactVars).filter((name) => !contactVars[name]);
+  if (missing.length > 0) {
+    console.error(`Falta ${missing.join(', ')} en las variables de entorno. Revisá .env.`);
+    process.exit(1);
+  }
+}
+
 const config = Object.freeze({
   DATABASE_URL,
   PORT: port,
   NODE_ENV: nodeEnv,
   NOMBRE_TIENDA: NOMBRE_TIENDA || 'Donna Style',
-  WHATSAPP_ADMIN: WHATSAPP_ADMIN || '5493517505083',
-  INSTAGRAM: INSTAGRAM || '@donna_styleok',
-  EMAIL_CONTACTO: EMAIL_CONTACTO || 'yesi2682@hotmail.com',
-  CUIT: CUIT || '27-29456245-7',
+  WHATSAPP_ADMIN: WHATSAPP_ADMIN || '5493510000000',
+  INSTAGRAM: INSTAGRAM || '@tienda_ejemplo',
+  EMAIL_CONTACTO: EMAIL_CONTACTO || 'contacto@example.com',
+  CUIT: CUIT || '27-00000000-6',
   SITE_URL: SITE_URL || `http://localhost:${port}`,
   SESSION_SECRET: sessionSecret,
 });

@@ -125,3 +125,9 @@ La aplicación está en vivo en [donnastyle.cc](https://donnastyle.cc), sobre un
 - `CLAUDE.md` — convenciones de ingeniería del día a día (fundamento del stack, reglas de seguridad, estructura de carpetas, flujo local).
 - `progress.md` — bitácora de construcción fase por fase, incluidos los fixes de bugs de producción posteriores al lanzamiento.
 - `src/models/` y `src/services/` son los mejores puntos de entrada para leer la lógica real; `db/migrations/` documenta el modelo de datos con su justificación inline.
+
+---
+
+## Licencia
+
+© 2026 Matías Urbina. Todos los derechos reservados. El código se publica solo para consulta, como pieza de portfolio: no se otorga permiso para usarlo, copiarlo ni redistribuirlo. El nombre, el logo y la marca "Donna Style" pertenecen a la clienta. Las fuentes de terceros mantienen su propia licencia (Merriweather: SIL Open Font License 1.1). Ver [LICENSE](LICENSE).
